@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-graddly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-graddly}
+      POSTGRES_DB: ${DB_NAME:-graddly}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-graddly}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-graddly}
+      DB_PASSWORD: ${DB_PASSWORD:-graddly}
+      DB_NAME: ${DB_NAME:-graddly}
+      SWAGGER_PASSWORD: ${SWAGGER_PASSWORD:-}
+      LOGGLY_TOKEN: ${LOGGLY_TOKEN:-}
+      LOGGLY_SUBDOMAIN: ${LOGGLY_SUBDOMAIN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
