@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   api:
     build: .
     restart: unless-stopped
@@ -27,12 +40,20 @@ services:
       DB_USERNAME: ${DB_USERNAME:-graddly}
       DB_PASSWORD: ${DB_PASSWORD:-graddly}
       DB_NAME: ${DB_NAME:-graddly}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-dev-key-change-in-prod}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SWAGGER_PASSWORD: ${SWAGGER_PASSWORD:-}
       LOGGLY_TOKEN: ${LOGGLY_TOKEN:-}
       LOGGLY_SUBDOMAIN: ${LOGGLY_SUBDOMAIN:-}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:

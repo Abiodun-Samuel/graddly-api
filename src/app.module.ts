@@ -1,13 +1,20 @@
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WinstonModule } from 'nest-winston';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AuthModule } from './auth/auth.module.js';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
+import { RedisModule } from './redis/redis.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -22,16 +29,37 @@ import { winstonConfigFactory } from './logger/winston.config.js';
         password: config.get<string>('database.password'),
         database: config.get<string>('database.database'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: config.get<boolean>('database.synchronize'),
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: true,
+        synchronize: false,
         logging: config.get<boolean>('database.logging'),
+      }),
+    }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          { name: 'default', ttl: 60_000, limit: 60 },
+          { name: 'auth', ttl: 60_000, limit: 5 },
+        ],
+        storage: new ThrottlerStorageRedisService({
+          host: config.get<string>('app.redis.host', 'localhost'),
+          port: config.get<number>('app.redis.port', 6379),
+        }),
       }),
     }),
     WinstonModule.forRootAsync({
       inject: [ConfigService],
       useFactory: winstonConfigFactory,
     }),
+    RedisModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: CustomThrottlerGuard },
+  ],
 })
 export class AppModule {}

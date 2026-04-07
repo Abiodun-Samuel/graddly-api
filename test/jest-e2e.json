@@ -8,5 +8,7 @@
   },
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
-  }
+  },
+  "setupFiles": ["./setup.ts"],
+  "globalTeardown": "./global-teardown.ts"
 }

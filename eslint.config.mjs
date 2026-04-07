@@ -137,6 +137,23 @@ export default defineConfig(
       ],
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
+  },
+  {
+    files: ['**/*.dto.ts', '**/*.entity.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
+    },
+  },
+  {
+    files: ['**/redis.service.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
+  {
     settings: {
       'import/resolver': {
         node: {
