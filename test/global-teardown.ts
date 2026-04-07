@@ -4,10 +4,7 @@ import * as dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { Client } from 'pg';
 
-dotenv.config({
-  path: path.resolve(__dirname, '..', '.env.test'),
-  override: true,
-});
+dotenv.config({ path: path.resolve(__dirname, '..', '.env.test') });
 
 export default async function globalTeardown(): Promise<void> {
   const pg = new Client({
