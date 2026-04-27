@@ -1,5 +1,7 @@
 import 'dotenv/config';
 
+import './config/env-bootstrap.js';
+
 import './instrument.js';
 
 import { ConfigService } from '@nestjs/config';

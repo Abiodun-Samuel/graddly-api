@@ -1,11 +1,17 @@
 import { registerAs } from '@nestjs/config';
 
-export default registerAs('database', () => ({
-  type: 'postgres' as const,
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'graddly',
-  password: process.env.DB_PASSWORD || 'graddly',
-  database: process.env.DB_NAME || 'graddly',
-  logging: process.env.NODE_ENV !== 'production',
-}));
+import { getEnv } from './validate-env.js';
+
+export default registerAs('database', () => {
+  const e = getEnv();
+
+  return {
+    type: 'postgres' as const,
+    host: e.DB_HOST,
+    port: e.DB_PORT,
+    username: e.DB_USERNAME,
+    password: e.DB_PASSWORD,
+    database: e.DB_NAME,
+    logging: e.NODE_ENV !== 'production',
+  };
+});

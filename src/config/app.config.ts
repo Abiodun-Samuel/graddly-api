@@ -1,33 +1,38 @@
 import { registerAs } from '@nestjs/config';
 
-export default registerAs('app', () => ({
-  port: parseInt(process.env.PORT || '3000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  swagger: {
-    username: 'graddly',
-    password: process.env.SWAGGER_PASSWORD || 'Gr4ddly!Sw4g@2026#Sec',
-  },
-  jwt: {
-    secret: process.env.JWT_SECRET || 'change-me-in-production',
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  },
-  throttle: {
-    enabled: process.env.THROTTLE_ENABLED !== 'false',
-  },
-  redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  },
-  loggly: {
-    token: process.env.LOGGLY_TOKEN || '',
-    subdomain: process.env.LOGGLY_SUBDOMAIN || '',
-  },
-  sentry: {
-    dsn: process.env.SENTRY_DSN?.trim() || '',
-    environment:
-      process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
-    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0),
-    profilesSampleRate: Number(process.env.SENTRY_PROFILES_SAMPLE_RATE ?? 0),
-  },
-}));
+import { getEnv } from './validate-env.js';
+
+export default registerAs('app', () => {
+  const e = getEnv();
+
+  return {
+    port: e.PORT,
+    nodeEnv: e.NODE_ENV,
+    swagger: {
+      username: 'graddly',
+      password: e.SWAGGER_PASSWORD || 'Gr4ddly!Sw4g@2026#Sec',
+    },
+    jwt: {
+      secret: e.JWT_SECRET,
+      accessExpiresIn: e.JWT_ACCESS_EXPIRES_IN,
+      refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
+    },
+    throttle: {
+      enabled: e.THROTTLE_ENABLED,
+    },
+    redis: {
+      host: e.REDIS_HOST,
+      port: e.REDIS_PORT,
+    },
+    loggly: {
+      token: e.LOGGLY_TOKEN,
+      subdomain: e.LOGGLY_SUBDOMAIN,
+    },
+    sentry: {
+      dsn: e.SENTRY_DSN.trim(),
+      environment: e.SENTRY_ENVIRONMENT || e.NODE_ENV,
+      tracesSampleRate: e.SENTRY_TRACES_SAMPLE_RATE,
+      profilesSampleRate: e.SENTRY_PROFILES_SAMPLE_RATE,
+    },
+  };
+});

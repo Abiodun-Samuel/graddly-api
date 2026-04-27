@@ -1,14 +1,20 @@
 import 'dotenv/config';
+import './env-bootstrap.js';
 import 'reflect-metadata';
+
 import { DataSource } from 'typeorm';
+
+import { getEnv } from './validate-env.js';
+
+const e = getEnv();
 
 export default new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'graddly',
-  password: process.env.DB_PASSWORD || 'graddly',
-  database: process.env.DB_NAME || 'graddly',
+  host: e.DB_HOST,
+  port: e.DB_PORT,
+  username: e.DB_USERNAME,
+  password: e.DB_PASSWORD,
+  database: e.DB_NAME,
   entities: [__dirname + '/../**/*.entity.js'],
   migrations: [__dirname + '/../migrations/*.js'],
 });

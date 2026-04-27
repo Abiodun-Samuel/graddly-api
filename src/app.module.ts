@@ -14,14 +14,19 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js'
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
+import { validateEnv } from './config/validate-env.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { RedisModule } from './redis/redis.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+      load: [appConfig, databaseConfig],
+    }),
     SentryModule.forRoot(),
-    ConfigModule.forRoot({ isGlobal: true, load: [appConfig, databaseConfig] }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
