@@ -1,6 +1,8 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
 
 import { BaseEntity } from '../../common/entities/base.entity.js';
+
+import type { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -24,4 +26,7 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true })
   avatarUrl!: string | null;
+
+  @OneToMany('OrganisationMembership', 'user')
+  memberships!: OrganisationMembership[];
 }
