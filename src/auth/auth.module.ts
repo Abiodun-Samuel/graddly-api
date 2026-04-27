@@ -11,6 +11,7 @@ import { ActiveOrganisationResolver } from './active-organisation.resolver.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
+import { RolesGuard } from './guards/roles.guard.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
@@ -31,6 +32,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     JwtStrategy,
     ActiveOrganisationResolver,
     ActiveOrganisationGuard,
+    RolesGuard,
   ],
   exports: [
     PassportModule,
@@ -38,6 +40,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     JwtStrategy,
     ActiveOrganisationGuard,
     ActiveOrganisationResolver,
+    RolesGuard,
   ],
 })
 export class AuthModule {}
