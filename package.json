@@ -21,6 +21,7 @@
     "typeorm": "node ./node_modules/typeorm/cli.js -d dist/config/data-source.js",
     "migration:generate": "yarn build && yarn typeorm migration:generate",
     "migration:run": "yarn build && yarn typeorm migration:run",
+    "migration:show": "yarn build && yarn typeorm migration:show",
     "migration:revert": "yarn build && yarn typeorm migration:revert",
     "migration:create": "yarn typeorm migration:create"
   },
