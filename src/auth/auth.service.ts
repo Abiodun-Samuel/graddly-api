@@ -1,9 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm';
 import { v4 as uuidV4 } from 'uuid';
 
+import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
+import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { RedisService } from '../redis/redis.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { UsersService } from '../users/users.service.js';
@@ -15,6 +19,13 @@ import { IJwtPayload } from './interfaces/jwt-payload.interface.js';
 
 const REFRESH_PREFIX = 'refresh:';
 
+/** Lower is higher privilege when choosing the active organisation. */
+const ROLE_PRIORITY: Record<OrganisationRole, number> = {
+  [OrganisationRole.OWNER]: 0,
+  [OrganisationRole.ADMIN]: 1,
+  [OrganisationRole.MEMBER]: 2,
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -22,6 +33,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly redis: RedisService,
+    @InjectRepository(OrganisationMembership)
+    private readonly membershipRepo: Repository<OrganisationMembership>,
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResponseDto> {
@@ -63,8 +76,47 @@ export class AuthService {
     await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
   }
 
+  /**
+   * Active organisation: lowest role priority wins (OWNER > ADMIN > MEMBER),
+   * then earliest membership `createdAt` as tiebreaker.
+   */
+  private async resolveActiveMembershipForUser(
+    userId: string,
+  ): Promise<OrganisationMembership | null> {
+    const memberships = await this.membershipRepo.find({
+      where: { user: { id: userId } },
+      relations: ['organisation'],
+    });
+
+    if (memberships.length === 0) {
+      return null;
+    }
+
+    const sorted = [...memberships].sort((a, b) => {
+      const pa = ROLE_PRIORITY[a.role];
+      const pb = ROLE_PRIORITY[b.role];
+      if (pa !== pb) {
+        return pa - pb;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    return sorted[0] ?? null;
+  }
+
   private async generateTokens(user: User): Promise<AuthResponseDto> {
-    const jwtPayload: IJwtPayload = { sub: user.id, email: user.email };
+    const membership = await this.resolveActiveMembershipForUser(user.id);
+
+    const jwtPayload: IJwtPayload = {
+      sub: user.id,
+      email: user.email,
+      ...(membership
+        ? {
+            orgId: membership.organisation.id,
+            roles: [membership.role],
+          }
+        : {}),
+    };
 
     const accessTtl = this.parseToSeconds(
       this.config.get<string>('app.jwt.accessExpiresIn', '15m'),

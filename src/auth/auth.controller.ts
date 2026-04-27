@@ -31,7 +31,6 @@ import {
   ValidationErrorResponseDto,
 } from '../common/dto/error-response.dto.js';
 import { ResponseMessage } from '../common/interceptors/response-message.decorator.js';
-import { User } from '../users/entities/user.entity.js';
 
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
@@ -39,6 +38,8 @@ import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+
+import type { AuthenticatedUser } from './interfaces/authenticated-user.interface.js';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -157,7 +158,7 @@ export class AuthController {
     description: 'Missing or invalid access token',
     type: ErrorResponseDto,
   })
-  me(@CurrentUser() user: User): User {
+  me(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
   }
 }

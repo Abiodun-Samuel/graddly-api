@@ -1,10 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Repository } from 'typeorm';
 
-import { User } from '../../users/entities/user.entity.js';
+import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 import { UsersService } from '../../users/users.service.js';
+import { AuthenticatedUser } from '../interfaces/authenticated-user.interface.js';
 import { IJwtPayload } from '../interfaces/jwt-payload.interface.js';
 
 @Injectable()
@@ -12,6 +15,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfigService,
     private readonly usersService: UsersService,
+    @InjectRepository(OrganisationMembership)
+    private readonly membershipRepo: Repository<OrganisationMembership>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -23,11 +28,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: IJwtPayload): Promise<User> {
+  async validate(payload: IJwtPayload): Promise<AuthenticatedUser> {
     const user = await this.usersService.findById(payload.sub);
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
-    return user;
+
+    if (payload.orgId) {
+      const membership = await this.membershipRepo.findOne({
+        where: {
+          user: { id: payload.sub },
+          organisation: { id: payload.orgId },
+        },
+        relations: ['organisation'],
+      });
+
+      if (!membership) {
+        throw new UnauthorizedException(
+          'You no longer have access to this organisation',
+        );
+      }
+
+      return {
+        ...user,
+        organisationId: membership.organisation.id,
+        roles: [membership.role],
+      };
+    }
+
+    return { ...user };
   }
 }

@@ -2,9 +2,14 @@ import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 
-// eslint-disable-next-line import/order
-import { RedisService } from '../../redis/redis.service';
+import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
+import { OrganisationRole } from '../../organisations/organisation-role.enum.js';
+import { RedisService } from '../../redis/redis.service.js';
+import { User } from '../../users/entities/user.entity.js';
+import { UsersService } from '../../users/users.service.js';
+import { AuthService } from '../auth.service.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -13,9 +18,6 @@ jest.mock('bcrypt', () => ({
 const { compare: mockCompare } = jest.requireMock<{
   compare: jest.Mock;
 }>('bcrypt');
-import { User } from '../../users/entities/user.entity.js';
-import { UsersService } from '../../users/users.service.js';
-import { AuthService } from '../auth.service.js';
 
 const mockUser: User = {
   id: 'user-uuid-1',
@@ -30,7 +32,7 @@ const mockUser: User = {
   updatedAt: new Date('2026-01-01'),
   isDeleted: false,
   deletedAt: null,
-};
+} as never;
 
 const mockUsersService = {
   create: jest.fn(),
@@ -58,10 +60,15 @@ const mockRedisService = {
   del: jest.fn(),
 };
 
+const mockMembershipRepo = {
+  find: jest.fn(),
+};
+
 describe('AuthService', () => {
   let authService: AuthService;
 
   beforeEach(async () => {
+    mockMembershipRepo.find.mockResolvedValue([]);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -69,11 +76,16 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisService, useValue: mockRedisService },
+        {
+          provide: getRepositoryToken(OrganisationMembership),
+          useValue: mockMembershipRepo,
+        },
       ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
     jest.clearAllMocks();
+    mockMembershipRepo.find.mockResolvedValue([]);
   });
 
   describe('signup', () => {
@@ -179,6 +191,55 @@ describe('AuthService', () => {
 
       expect(mockRedisService.del).toHaveBeenCalledWith(
         `refresh:${refreshToken}`,
+      );
+    });
+  });
+
+  describe('JWT payload (org claims)', () => {
+    const dto = { email: 'john@example.com', password: 'P@ssw0rd!' };
+
+    it('signs access token without orgId when user has no memberships', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockCompare.mockResolvedValue(true);
+      mockMembershipRepo.find.mockResolvedValue([]);
+
+      await authService.login(dto);
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        {
+          sub: mockUser.id,
+          email: mockUser.email,
+        },
+        expect.any(Object),
+      );
+    });
+
+    it('includes orgId and roles when active membership exists', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockCompare.mockResolvedValue(true);
+      mockMembershipRepo.find.mockResolvedValue([
+        {
+          role: OrganisationRole.MEMBER,
+          createdAt: new Date('2026-02-01'),
+          organisation: { id: 'org-later' },
+        },
+        {
+          role: OrganisationRole.OWNER,
+          createdAt: new Date('2026-01-01'),
+          organisation: { id: 'org-earlier' },
+        },
+      ]);
+
+      await authService.login(dto);
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        {
+          sub: mockUser.id,
+          email: mockUser.email,
+          orgId: 'org-earlier',
+          roles: [OrganisationRole.OWNER],
+        },
+        expect.any(Object),
       );
     });
   });

@@ -38,7 +38,13 @@ async function bootstrap() {
     .setTitle('Graddly API')
     .setDescription('The Graddly API documentation')
     .setVersion('0.1.0')
-    .addBearerAuth()
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      description:
+        'JWT access token. Claims: `sub` (user id), `email`, optional `orgId` (active organisation), optional `roles` (roles in that org). See docs/api/jwt-payload.md for details and client migration.',
+    })
     .addServer('/api/v1')
     .build();
 
