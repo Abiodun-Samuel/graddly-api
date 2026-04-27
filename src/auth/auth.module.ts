@@ -7,8 +7,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { UsersModule } from '../users/users.module.js';
 
+import { ActiveOrganisationResolver } from './active-organisation.resolver.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
@@ -24,7 +26,18 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [PassportModule, JwtModule, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    ActiveOrganisationResolver,
+    ActiveOrganisationGuard,
+  ],
+  exports: [
+    PassportModule,
+    JwtModule,
+    JwtStrategy,
+    ActiveOrganisationGuard,
+    ActiveOrganisationResolver,
+  ],
 })
 export class AuthModule {}

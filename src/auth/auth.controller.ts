@@ -8,9 +8,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -34,9 +37,14 @@ import { ResponseMessage } from '../common/interceptors/response-message.decorat
 
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
+import {
+  ApiActiveOrganisationResponseDto,
+  ActiveOrganisationContextDto,
+} from './dto/active-organisation-context.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
+import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 import type { AuthenticatedUser } from './interfaces/authenticated-user.interface.js';
@@ -160,5 +168,47 @@ export class AuthController {
   })
   me(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
+  }
+
+  @Get('active-organisation')
+  @UseGuards(JwtAuthGuard, ActiveOrganisationGuard)
+  @ApiBearerAuth()
+  @ApiHeader({
+    name: 'X-Organisation-Id',
+    description:
+      'Optional. Overrides the JWT default active organisation when you are a member.',
+    required: false,
+    schema: { format: 'uuid', type: 'string' },
+  })
+  @ResponseMessage('Active organisation resolved')
+  @ApiOperation({
+    summary: 'Get resolved active organisation context',
+    description:
+      'Requires a bearer access token that includes organisation context (`orgId` in JWT) unless you supply `X-Organisation-Id` for a membership you belong to.',
+  })
+  @ApiOkResponse({
+    description: 'Current resolved organisation id and roles',
+    type: ApiActiveOrganisationResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid X-Organisation-Id header',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description:
+      'No organisation context, not a member of requested org, or invalid membership',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+    type: ErrorResponseDto,
+  })
+  activeOrganisation(
+    @CurrentUser() user: AuthenticatedUser,
+  ): ActiveOrganisationContextDto {
+    return {
+      organisationId: user.organisationId!,
+      roles: user.roles ?? [],
+    };
   }
 }

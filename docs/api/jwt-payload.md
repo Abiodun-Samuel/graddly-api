@@ -21,6 +21,17 @@ When the user belongs to several organisations, the API picks **one** active org
 
 Token **refresh** re-runs this resolution against the database, so membership changes are reflected on the next issued access token.
 
+## Optional header: `X-Organisation-Id`
+
+Send **`X-Organisation-Id: <organisation uuid>`** on a request to override the JWT’s default active organisation for **that request only**. The API checks that you have an active membership in that organisation; otherwise it responds with **403**.
+
+Resolution order:
+
+1. If **`X-Organisation-Id`** is present and valid → use that organisation when you are a member.
+2. Otherwise → use **`orgId` / `roles` from the JWT** as produced at login / refresh.
+
+This lets clients switch tenant context **without** issuing a new access token (until you refresh for a new default).
+
 ## Migration for clients
 
 1. **Additive change:** New tokens may include `orgId` and `roles`. Older tokens may only contain `sub` and `email` until they expire.

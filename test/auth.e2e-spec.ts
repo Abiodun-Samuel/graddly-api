@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { DataSource } from 'typeorm';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
@@ -256,6 +257,87 @@ describe('AuthController (e2e)', () => {
         statusCode: 401,
         message: 'Unauthorized',
         path: '/api/v1/auth/logout',
+      });
+    });
+  });
+
+  describe('GET /auth/active-organisation', () => {
+    let ctxToken: string;
+    let ctxRefreshToken: string;
+    let userId: string;
+
+    beforeAll(async () => {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: signupDto.email, password: signupDto.password })
+        .expect(200);
+      ctxToken = login.body.data.accessToken as string;
+      ctxRefreshToken = login.body.data.refreshToken as string;
+      const payload = JSON.parse(
+        Buffer.from(ctxToken.split('.')[1], 'base64url').toString('utf8'),
+      ) as { sub: string };
+      userId = payload.sub;
+    });
+
+    it('returns 403 when user has no organisation context', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${ctxToken}`)
+        .expect(403);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 403,
+        message: 'No active organisation context',
+        path: '/api/v1/auth/active-organisation',
+        error: 'Forbidden',
+      });
+    });
+
+    it('returns 200 after membership exists and 403 for unknown org header', async () => {
+      const slug = `active-org-e2e-${Date.now()}`;
+      const create = await request(app.getHttpServer())
+        .post('/api/v1/organisations')
+        .set('Authorization', `Bearer ${ctxToken}`)
+        .send({ name: 'Active Org E2E', slug })
+        .expect(201);
+
+      const orgId = create.body.data.id as string;
+
+      const dataSource = app.get(DataSource);
+      await dataSource.query(
+        `INSERT INTO organisation_memberships ("id", "createdAt", "updatedAt", "isDeleted", "deletedAt", "role", "userId", "organisationId") VALUES (uuid_generate_v4(), NOW(), NOW(), false, NULL, $1::organisation_role, $2, $3)`,
+        ['owner', userId, orgId],
+      );
+
+      const refreshed = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: ctxRefreshToken })
+        .expect(200);
+      const freshAccess = refreshed.body.data.accessToken as string;
+      ctxRefreshToken = refreshed.body.data.refreshToken as string;
+
+      const ok = await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${freshAccess}`)
+        .expect(200);
+
+      expect(ok.body.message).toBe('Active organisation resolved');
+      expect(ok.body.data).toEqual({
+        organisationId: orgId,
+        roles: ['owner'],
+      });
+
+      const badOrg = await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${freshAccess}`)
+        .set('X-Organisation-Id', '00000000-0000-4000-8000-000000000099')
+        .expect(403);
+
+      expectFilteredHttpExceptionBody(badOrg.body as Record<string, unknown>, {
+        statusCode: 403,
+        message: 'You are not a member of this organisation',
+        path: '/api/v1/auth/active-organisation',
+        error: 'Forbidden',
       });
     });
   });
