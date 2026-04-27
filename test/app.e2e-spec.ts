@@ -24,6 +24,10 @@ describe('AppController (e2e)', () => {
       .get('/api/v1')
       .expect(200)
       .expect((res) => {
+        expect(res.body).toEqual({
+          message: 'Success',
+          data: 'Hello World!',
+        });
         expect(res.headers['x-request-id']).toMatch(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
         );
@@ -52,7 +56,7 @@ describe('AppController (e2e)', () => {
       });
   });
 
-  it('404 responses include requestId matching X-Request-Id', () => {
+  it('404 responses match standard error envelope and requestId header', () => {
     return request(app.getHttpServer())
       .get('/api/v1/no-such-route-e2e')
       .expect(404)
@@ -60,7 +64,14 @@ describe('AppController (e2e)', () => {
         const rid = res.headers['x-request-id'];
         expect(typeof rid).toBe('string');
         expect(rid.length).toBeGreaterThan(0);
-        expect(res.body.requestId).toBe(rid);
+        expect(res.body).toEqual({
+          message: 'Cannot GET /api/v1/no-such-route-e2e',
+          error: 'Not Found',
+          statusCode: 404,
+          timestamp: expect.any(String),
+          path: '/api/v1/no-such-route-e2e',
+          requestId: rid,
+        });
       });
   });
 

@@ -5,6 +5,10 @@ import { App } from 'supertest/types';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
+import {
+  expectFilteredHttpExceptionBody,
+  expectValidationErrorBody,
+} from './helpers/e2e-response-contracts.js';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -55,9 +59,11 @@ describe('AuthController (e2e)', () => {
         .send(signupDto)
         .expect(409);
 
-      expect(res.body).toMatchObject({
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
         statusCode: 409,
         message: 'Email already in use',
+        path: '/api/v1/auth/signup',
+        error: 'Conflict',
       });
     });
 
@@ -67,14 +73,10 @@ describe('AuthController (e2e)', () => {
         .send({ email: 'not-valid' })
         .expect(422);
 
-      expect(res.body).toMatchObject({
-        statusCode: 422,
-        message: 'Validation Error',
-        path: '/api/v1/auth/signup',
-      });
-      expect(res.body.errors).toBeDefined();
-      expect(typeof res.body.errors).toBe('object');
-      expect(res.body.timestamp).toEqual(expect.any(String));
+      expectValidationErrorBody(
+        res.body as Record<string, unknown>,
+        '/api/v1/auth/signup',
+      );
     });
   });
 
@@ -103,9 +105,11 @@ describe('AuthController (e2e)', () => {
         .send({ email: signupDto.email, password: 'WrongPassword!' })
         .expect(401);
 
-      expect(res.body).toMatchObject({
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
         statusCode: 401,
         message: 'Invalid credentials',
+        path: '/api/v1/auth/login',
+        error: 'Unauthorized',
       });
     });
 
@@ -115,9 +119,11 @@ describe('AuthController (e2e)', () => {
         .send({ email: 'ghost@example.com', password: 'P@ssw0rd!' })
         .expect(401);
 
-      expect(res.body).toMatchObject({
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
         statusCode: 401,
         message: 'Invalid credentials',
+        path: '/api/v1/auth/login',
+        error: 'Unauthorized',
       });
     });
   });
@@ -148,14 +154,28 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 401 without a token', async () => {
-      await request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/me',
+      });
     });
 
     it('should return 401 with an invalid token', async () => {
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .get('/api/v1/auth/me')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/me',
+      });
     });
   });
 
@@ -191,9 +211,11 @@ describe('AuthController (e2e)', () => {
         .send({ refreshToken: staleToken })
         .expect(401);
 
-      expect(res.body).toMatchObject({
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
         statusCode: 401,
         message: 'Invalid or expired refresh token',
+        path: '/api/v1/auth/refresh',
+        error: 'Unauthorized',
       });
     });
   });
@@ -225,10 +247,16 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 401 without a token', async () => {
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .send({ refreshToken: 'anything' })
         .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/logout',
+      });
     });
   });
 });
