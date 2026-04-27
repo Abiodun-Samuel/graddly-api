@@ -20,7 +20,48 @@ describe('AppController (e2e)', () => {
   });
 
   it('/api/v1 (GET)', () => {
-    return request(app.getHttpServer()).get('/api/v1').expect(200);
+    return request(app.getHttpServer())
+      .get('/api/v1')
+      .expect(200)
+      .expect((res) => {
+        expect(res.headers['x-request-id']).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        );
+      });
+  });
+
+  it('/api/v1 echoes incoming X-Request-Id', () => {
+    const id = 'client-correlation-abc';
+    return request(app.getHttpServer())
+      .get('/api/v1')
+      .set('X-Request-Id', id)
+      .expect(200)
+      .expect((res) => {
+        expect(res.headers['x-request-id']).toBe(id);
+      });
+  });
+
+  it('/api/v1 echoes incoming X-Correlation-Id when X-Request-Id is absent', () => {
+    const id = 'corr-from-mobile-client';
+    return request(app.getHttpServer())
+      .get('/api/v1')
+      .set('X-Correlation-Id', id)
+      .expect(200)
+      .expect((res) => {
+        expect(res.headers['x-request-id']).toBe(id);
+      });
+  });
+
+  it('404 responses include requestId matching X-Request-Id', () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/no-such-route-e2e')
+      .expect(404)
+      .expect((res) => {
+        const rid = res.headers['x-request-id'];
+        expect(typeof rid).toBe('string');
+        expect(rid.length).toBeGreaterThan(0);
+        expect(res.body.requestId).toBe(rid);
+      });
   });
 
   afterEach(async () => {

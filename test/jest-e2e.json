@@ -9,6 +9,6 @@
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  "setupFiles": ["./setup.ts"],
+  "setupFiles": ["./load-env.ts", "./import-instrument.ts"],
   "globalTeardown": "./global-teardown.ts"
 }

@@ -1,15 +1,17 @@
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { WinstonModule } from 'nest-winston';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
@@ -18,6 +20,7 @@ import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig, databaseConfig] }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -62,4 +65,8 @@ import { UsersModule } from './users/users.module.js';
     { provide: APP_GUARD, useClass: CustomThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

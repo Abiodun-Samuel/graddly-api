@@ -1,7 +1,9 @@
 declare module 'winston-loggly-bulk' {
+  import Logform from 'logform';
   import TransportStream from 'winston-transport';
 
   interface ILogglyOptions extends TransportStream.TransportStreamOptions {
+    format?: Logform.Format;
     token: string;
     subdomain: string;
     tags?: string[];

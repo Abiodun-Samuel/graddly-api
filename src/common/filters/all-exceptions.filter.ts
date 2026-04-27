@@ -6,7 +6,10 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { Request, Response } from 'express';
+
+import { getRequestId } from '../context/correlation-id-context.js';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -40,7 +43,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     body['timestamp'] = new Date().toISOString();
     body['path'] = request.url;
 
+    const requestId = getRequestId(request);
+    if (requestId !== undefined) {
+      body['requestId'] = requestId;
+    }
+
     if (status >= 500) {
+      Sentry.captureException(exception);
       this.logger.error(exception.message, exception.stack);
     } else {
       this.logger.warn(
