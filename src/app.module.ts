@@ -48,7 +48,7 @@ import { UsersModule } from './users/users.module.js';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         throttlers: [
-          { name: 'default', ttl: 60_000, limit: 60 },
+          { name: 'default', ttl: 60_000, limit: 100 },
           { name: 'auth', ttl: 60_000, limit: 5 },
         ],
         storage: new ThrottlerStorageRedisService({
