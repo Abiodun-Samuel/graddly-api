@@ -1,7 +1,9 @@
 import {
   getCorrelationId,
+  getCurrentOrganisationId,
   getRequestId,
   runWithCorrelationId,
+  setCurrentOrganisationId,
 } from './correlation-id-context.js';
 
 import type { Request } from 'express';
@@ -36,6 +38,23 @@ describe('correlation-id-context', () => {
           expect(getCorrelationId()).toBe('nested');
         });
         expect(getCorrelationId()).toBe('outer');
+      });
+    });
+
+    it('supports optional currentOrganisationId on the store', () => {
+      runWithCorrelationId(
+        { correlationId: 'c1', currentOrganisationId: 'org-a' },
+        () => {
+          expect(getCurrentOrganisationId()).toBe('org-a');
+        },
+      );
+    });
+
+    it('setCurrentOrganisationId mutates the active store', () => {
+      runWithCorrelationId('c2', () => {
+        expect(getCurrentOrganisationId()).toBeUndefined();
+        setCurrentOrganisationId('org-b');
+        expect(getCurrentOrganisationId()).toBe('org-b');
       });
     });
   });

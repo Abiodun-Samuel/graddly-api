@@ -30,7 +30,7 @@ export function validateEnv(
 
 /** Parse `process.env` and cache (CLI / bootstrap before Nest). */
 export function parseEnvFromProcess(): Env {
-  cached = parseEnv(process.env as Record<string, unknown>);
+  cached = parseEnv(process.env);
   return cached;
 }
 

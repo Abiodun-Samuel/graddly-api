@@ -12,6 +12,7 @@ describe('parseEnv', () => {
     expect(env.PORT).toBe(3000);
     expect(env.NODE_ENV).toBe('development');
     expect(env.THROTTLE_ENABLED).toBe(true);
+    expect(env.TENANT_DB_CONTEXT_ENABLED).toBe(false);
   });
 
   it('rejects production with a short JWT secret', () => {

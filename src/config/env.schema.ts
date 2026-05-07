@@ -30,6 +30,12 @@ export const envSchema = z
       .default('true')
       .transform((v) => v !== 'false'),
 
+    TENANT_DB_CONTEXT_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+
     SWAGGER_PASSWORD: z.string().optional().default(''),
     LOGGLY_TOKEN: z.string().optional().default(''),
     LOGGLY_SUBDOMAIN: z.string().optional().default(''),

@@ -180,3 +180,4 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           THROTTLE_ENABLED: "false"
+          TENANT_DB_CONTEXT_ENABLED: "false"

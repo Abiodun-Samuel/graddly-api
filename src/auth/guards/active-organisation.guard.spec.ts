@@ -1,5 +1,6 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 
+import * as correlationContext from '../../common/context/correlation-id-context.js';
 import { ActiveOrganisationResolver } from '../active-organisation.resolver.js';
 
 import { ActiveOrganisationGuard } from './active-organisation.guard.js';
@@ -26,6 +27,9 @@ describe('ActiveOrganisationGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApplyHeaderOverride.mockResolvedValue(undefined);
+    jest
+      .spyOn(correlationContext, 'setCurrentOrganisationId')
+      .mockImplementation();
   });
 
   it('allows access when organisationId is set after resolver', async () => {
@@ -39,6 +43,9 @@ describe('ActiveOrganisationGuard', () => {
     await expect(guard.canActivate(createContext(user))).resolves.toBe(true);
 
     expect(mockApplyHeaderOverride).toHaveBeenCalled();
+    expect(correlationContext.setCurrentOrganisationId).toHaveBeenCalledWith(
+      'org-1',
+    );
   });
 
   it('throws when organisationId is missing', async () => {
