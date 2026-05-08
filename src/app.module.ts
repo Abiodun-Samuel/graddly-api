@@ -15,6 +15,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
 import { validateEnv } from './config/validate-env.js';
+import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -42,13 +43,14 @@ import { UsersModule } from './users/users.module.js';
         migrationsRun: true,
         synchronize: false,
         logging: config.get<boolean>('database.logging'),
+        subscribers: [TenantSessionSubscriber],
       }),
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         throttlers: [
-          { name: 'default', ttl: 60_000, limit: 60 },
+          { name: 'default', ttl: 60_000, limit: 100 },
           { name: 'auth', ttl: 60_000, limit: 5 },
         ],
         storage: new ThrottlerStorageRedisService({

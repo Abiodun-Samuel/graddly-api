@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
+import { setCurrentOrganisationId } from '../../common/context/correlation-id-context.js';
 import { ActiveOrganisationResolver } from '../active-organisation.resolver.js';
 
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface.js';
@@ -30,6 +31,7 @@ export class ActiveOrganisationGuard implements CanActivate {
       throw new ForbiddenException('No active organisation context');
     }
 
+    setCurrentOrganisationId(user.organisationId);
     return true;
   }
 }

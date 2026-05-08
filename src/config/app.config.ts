@@ -20,6 +20,9 @@ export default registerAs('app', () => {
     throttle: {
       enabled: e.THROTTLE_ENABLED,
     },
+    tenantDbContext: {
+      enabled: e.TENANT_DB_CONTEXT_ENABLED,
+    },
     redis: {
       host: e.REDIS_HOST,
       port: e.REDIS_PORT,
