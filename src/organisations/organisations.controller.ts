@@ -47,7 +47,7 @@ import { OrganisationsService } from './organisations.service.js';
   type: ErrorResponseDto,
 })
 export class OrganisationsController {
-  constructor(private readonly organisationsService: OrganisationsService) {}
+  constructor(private readonly organisationsService: OrganisationsService) { }
 
   @Post()
   @ResponseMessage('Organisation created successfully')
