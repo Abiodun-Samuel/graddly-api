@@ -16,7 +16,6 @@ import { configureApp } from './configure-app.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.setGlobalPrefix('api', { exclude: ['health'] });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.use(helmet());
   configureApp(app);
