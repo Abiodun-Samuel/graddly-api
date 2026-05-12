@@ -16,6 +16,7 @@ import { configureApp } from './configure-app.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.setGlobalPrefix('api', { exclude: ['health'] });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.use(helmet());
   configureApp(app);
@@ -45,7 +46,6 @@ async function bootstrap() {
       description:
         'JWT access token. Claims: `sub` (user id), `email`, optional `orgId` (active organisation), optional `roles` (roles in that org). See docs/api/jwt-payload.md for details and client migration.',
     })
-    .addServer('/api/v1')
     .build();
 
   SwaggerModule.setup('docs', app, () =>

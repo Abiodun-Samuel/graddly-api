@@ -20,6 +20,7 @@ import { winstonConfigFactory } from './logger/winston.config.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { UsersModule } from './users/users.module.js';
+import { HealthModule } from './health/health.module.js';
 
 @Module({
   imports: [
@@ -56,6 +57,8 @@ import { UsersModule } from './users/users.module.js';
         storage: new ThrottlerStorageRedisService({
           host: config.get<string>('app.redis.host', 'localhost'),
           port: config.get<number>('app.redis.port', 6379),
+          password: config.get<string>('app.redis.password'),
+          family: 0,
         }),
       }),
     }),
@@ -67,6 +70,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     AuthModule,
     OrganisationsModule,
+    HealthModule
   ],
   controllers: [AppController],
   providers: [

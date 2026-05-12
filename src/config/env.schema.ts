@@ -23,6 +23,7 @@ export const envSchema = z
 
     REDIS_HOST: z.string().min(1).default('localhost'),
     REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+    REDIS_PASSWORD: z.string().optional(),
 
     THROTTLE_ENABLED: z
       .string()

@@ -26,6 +26,7 @@ export default registerAs('app', () => {
     redis: {
       host: e.REDIS_HOST,
       port: e.REDIS_PORT,
+      password: e.REDIS_PASSWORD,
     },
     loggly: {
       token: e.LOGGLY_TOKEN,
