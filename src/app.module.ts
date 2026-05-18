@@ -16,11 +16,11 @@ import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
 import { validateEnv } from './config/validate-env.js';
 import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
+import { HealthModule } from './health/health.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { UsersModule } from './users/users.module.js';
-import { HealthModule } from './health/health.module.js';
 
 @Module({
   imports: [
@@ -70,7 +70,7 @@ import { HealthModule } from './health/health.module.js';
     UsersModule,
     AuthModule,
     OrganisationsModule,
-    HealthModule
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
