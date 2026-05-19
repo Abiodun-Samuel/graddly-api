@@ -71,5 +71,8 @@ export default registerAs('app', () => {
     passwordReset: {
       tokenTtlSeconds: e.PASSWORD_RESET_TOKEN_TTL_SECONDS,
     },
+    emailVerification: {
+      tokenTtlSeconds: e.EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
+    },
   };
 });

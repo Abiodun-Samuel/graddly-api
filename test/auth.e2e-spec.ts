@@ -6,10 +6,16 @@ import { App } from 'supertest/types';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
+import { verifyUserEmail } from './helpers/e2e-http.js';
 import {
   expectFilteredHttpExceptionBody,
   expectValidationErrorBody,
 } from './helpers/e2e-response-contracts.js';
+import {
+  clearEmailVerificationTokens,
+  findEmailVerificationTokenForUserId,
+} from './helpers/email-verification-redis.js';
+import { getUserIdByEmail } from './helpers/rls-db.js';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -39,19 +45,16 @@ describe('AuthController (e2e)', () => {
   let refreshToken: string;
 
   describe('POST /auth/signup', () => {
-    it('should return 201 with { message, data: { accessToken, refreshToken } }', async () => {
+    it('should return 201 with verification message and no tokens', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/signup')
         .send(signupDto)
         .expect(201);
 
-      expect(res.body).toEqual({
-        message: 'Account created successfully',
-        data: {
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        },
-      });
+      expect(res.body.message).toBe(
+        'Account created. Please check your email to verify your account.',
+      );
+      expect(res.body.data).toBeUndefined();
     });
 
     it('should return 409 when email is already in use', async () => {
@@ -81,6 +84,109 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('Email verification', () => {
+    beforeEach(async () => {
+      await clearEmailVerificationTokens();
+    });
+
+    it('POST /auth/login returns 403 before email is verified', async () => {
+      const email = `unverified-login-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Unverified',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'P@ssw0rd!' })
+        .expect(403);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 403,
+        message: 'Email address not verified',
+        path: '/api/v1/auth/login',
+        error: 'Forbidden',
+      });
+    });
+
+    it('POST /auth/verify-email issues tokens and marks user verified', async () => {
+      const email = `verify-flow-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Verify',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      const userId = await getUserIdByEmail(email);
+      const token = await findEmailVerificationTokenForUserId(userId);
+      expect(token).toBeTruthy();
+
+      const verifyRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/verify-email')
+        .send({ token })
+        .expect(200);
+
+      expect(verifyRes.body.message).toBe('Email verified successfully');
+      expect(verifyRes.body.data).toEqual({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+
+      const meRes = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${verifyRes.body.data.accessToken}`)
+        .expect(200);
+
+      expect(meRes.body.data.isEmailVerified).toBe(true);
+    });
+
+    it('POST /auth/resend-verification returns 204', async () => {
+      const email = `resend-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Resend',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/resend-verification')
+        .send({ email })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/resend-verification')
+        .send({ email: `unknown-${Date.now()}@example.com` })
+        .expect(204);
+    });
+
+    it('POST /auth/verify-email returns 401 for invalid token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/verify-email')
+        .send({ token: '00000000-0000-4000-8000-000000000099' })
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Invalid or expired email verification token',
+        path: '/api/v1/auth/verify-email',
+        error: 'Unauthorized',
+      });
+    });
+  });
+
   describe('POST /auth/login', () => {
     beforeAll(async () => {
       const res = await request(app.getHttpServer())
@@ -91,6 +197,7 @@ describe('AuthController (e2e)', () => {
           `Expected signup 201 or 409 before login tests, got ${res.status}`,
         );
       }
+      await verifyUserEmail(app, signupDto.email);
     });
 
     it('should return 200 with { message, data: { accessToken, refreshToken } }', async () => {
@@ -154,7 +261,7 @@ describe('AuthController (e2e)', () => {
           firstName: signupDto.firstName,
           lastName: signupDto.lastName,
           email: signupDto.email,
-          isEmailVerified: false,
+          isEmailVerified: true,
           isActive: true,
           avatarUrl: null,
           isDeleted: false,
@@ -403,6 +510,8 @@ describe('AuthController (e2e)', () => {
           password: oldPassword,
         })
         .expect(201);
+
+      await verifyUserEmail(app, email);
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')

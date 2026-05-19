@@ -23,10 +23,11 @@ Use this when provisioning or rotating credentials for **staging** and **product
 
 | Item | Variable | Notes |
 |------|-----------|--------|
-| Email provider | `EMAIL_PROVIDER` | Set to `resend` in deployed environments that send password reset mail. |
+| Email provider | `EMAIL_PROVIDER` | Set to `resend` in deployed environments that send transactional email. |
 | Resend API key | `RESEND_API_KEY` | From the [Resend dashboard](https://resend.com/api-keys). |
 | From address | `RESEND_FROM_EMAIL` | Must use a verified domain (e.g. `Graddly <noreply@yourdomain.com>`). |
-| Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (e.g. `/reset`; see [password-reset.md](./password-reset.md)). |
+| Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (see [password-reset.md](./password-reset.md), [email-verification.md](./email-verification.md)). |
+| Verification TTL | `EMAIL_VERIFICATION_TOKEN_TTL_SECONDS` | Optional; default 24 hours. |
 
 ## When GOV.UK One Login (OIDC) is enabled
 

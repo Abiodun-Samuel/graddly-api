@@ -83,6 +83,12 @@ export const envSchema = z
       .min(300)
       .max(86_400)
       .default(3600),
+    EMAIL_VERIFICATION_TOKEN_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(300)
+      .max(172_800)
+      .default(86_400),
     FRONTEND_BASE_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {

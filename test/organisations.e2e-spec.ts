@@ -5,6 +5,7 @@ import { App } from 'supertest/types';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
+import { createVerifiedUser } from './helpers/e2e-http.js';
 import {
   expectFilteredHttpExceptionBody,
   expectOrganisationResource,
@@ -39,19 +40,8 @@ describe('OrganisationsController (e2e)', () => {
   let organisationId: string;
 
   describe('Auth setup', () => {
-    it('signs up and logs in with locked response contracts', async () => {
-      const signupRes = await request(app.getHttpServer())
-        .post('/api/v1/auth/signup')
-        .send(signupDto)
-        .expect(201);
-
-      expect(signupRes.body).toEqual({
-        message: 'Account created successfully',
-        data: {
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        },
-      });
+    it('signs up, verifies email, and logs in with locked response contracts', async () => {
+      const verified = await createVerifiedUser(app, signupDto);
 
       const loginRes = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -66,7 +56,7 @@ describe('OrganisationsController (e2e)', () => {
         },
       });
 
-      accessToken = loginRes.body.data.accessToken as string;
+      accessToken = verified.accessToken;
     });
   });
 

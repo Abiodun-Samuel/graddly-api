@@ -5,42 +5,42 @@ import { BaseEmailPayload } from './base-email.payload.js';
 
 import type { ConfigService } from '@nestjs/config';
 
-export interface IPasswordResetEmailParams {
+export interface IEmailVerificationEmailParams {
   to: string;
   firstName: string;
   token: string;
 }
 
-interface IPasswordResetTemplateContext {
+interface IEmailVerificationTemplateContext {
   firstName: string;
-  resetUrl: string;
+  verifyUrl: string;
   expiresInLabel: string;
 }
 
-export class PasswordResetEmail extends BaseEmailPayload {
-  readonly template = EmailTemplate.PASSWORD_RESET;
+export class EmailVerificationEmail extends BaseEmailPayload {
+  readonly template = EmailTemplate.EMAIL_VERIFICATION;
 
   private constructor(
     readonly to: string,
-    private readonly templateContext: IPasswordResetTemplateContext,
+    private readonly templateContext: IEmailVerificationTemplateContext,
   ) {
     super();
   }
 
   static create(
     config: ConfigService,
-    params: IPasswordResetEmailParams,
-  ): PasswordResetEmail {
+    params: IEmailVerificationEmailParams,
+  ): EmailVerificationEmail {
     const frontendBase = config.get<string>('app.frontend.baseUrl', '');
     const ttlSeconds = config.get<number>(
-      'app.passwordReset.tokenTtlSeconds',
-      3600,
+      'app.emailVerification.tokenTtlSeconds',
+      86_400,
     );
-    const resetUrl = `${frontendBase.replace(/\/$/, '')}/reset?token=${encodeURIComponent(params.token)}`;
+    const verifyUrl = `${frontendBase.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(params.token)}`;
 
-    return new PasswordResetEmail(params.to, {
+    return new EmailVerificationEmail(params.to, {
       firstName: params.firstName,
-      resetUrl,
+      verifyUrl,
       expiresInLabel: formatTokenTtlLabel(ttlSeconds),
     });
   }

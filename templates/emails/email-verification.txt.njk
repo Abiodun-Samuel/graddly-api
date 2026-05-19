@@ -1,0 +1,12 @@
+{% extends "layouts/base.txt.njk" %}
+
+{% block content %}
+Hi {{ firstName }},
+
+Thanks for signing up for {{ appName }}. Please confirm your email address to activate your account.
+
+Use this link to verify (expires in {{ expiresInLabel }}):
+{{ verifyUrl }}
+
+If you did not create an account, you can ignore this email.
+{% endblock %}

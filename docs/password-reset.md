@@ -39,6 +39,10 @@ Shared template variables (copyright year, app name, optional support/privacy UR
 
 Leave `EMAIL_PROVIDER=noop` to skip outbound email (debug log only in development). Use Redis CLI or tests to read `password-reset:*` keys when exercising the flow.
 
+## Related
+
+- [Email verification](./email-verification.md) for local sign-up.
+
 ## Security notes
 
 - Reset tokens are single-use (deleted after successful reset).

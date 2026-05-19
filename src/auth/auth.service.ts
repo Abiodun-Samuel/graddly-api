@@ -1,4 +1,9 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,6 +14,7 @@ import { v4 as uuidV4 } from 'uuid';
 import { setCurrentUserId } from '../common/context/correlation-id-context.js';
 import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
 import { EmailService } from '../email/email.service.js';
+import { EmailVerificationEmail } from '../email/payloads/email-verification.email.js';
 import { PasswordResetEmail } from '../email/payloads/password-reset.email.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
@@ -23,6 +29,7 @@ import { IJwtPayload } from './interfaces/jwt-payload.interface.js';
 
 const REFRESH_PREFIX = 'refresh:';
 const PASSWORD_RESET_PREFIX = 'password-reset:';
+const EMAIL_VERIFY_PREFIX = 'email-verify:';
 
 /** Lower is higher privilege when choosing the active organisation. */
 const ROLE_PRIORITY: Record<OrganisationRole, number> = {
@@ -45,9 +52,9 @@ export class AuthService {
     private readonly membershipRepo: Repository<OrganisationMembership>,
   ) {}
 
-  async signup(dto: SignupDto): Promise<AuthResponseDto> {
+  async signup(dto: SignupDto): Promise<void> {
     const user = await this.usersService.create(dto);
-    return this.generateTokens(user);
+    await this.sendVerificationEmail(user);
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -65,6 +72,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.isEmailVerified) {
+      throw new ForbiddenException('Email address not verified');
+    }
+
     return this.generateTokens(user);
   }
 
@@ -77,6 +88,13 @@ export class AuthService {
     await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
 
     const user = await this.usersService.findById(userId);
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+    if (!user.isEmailVerified) {
+      throw new ForbiddenException('Email address not verified');
+    }
+
     return this.generateTokens(user);
   }
 
@@ -136,6 +154,35 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
+  async verifyEmail(token: string): Promise<AuthResponseDto> {
+    const userId = await this.redis.get(`${EMAIL_VERIFY_PREFIX}${token}`);
+    if (!userId) {
+      throw new UnauthorizedException(
+        'Invalid or expired email verification token',
+      );
+    }
+
+    await this.redis.del(`${EMAIL_VERIFY_PREFIX}${token}`);
+    await this.usersService.markEmailVerified(userId);
+
+    const user = await this.usersService.findById(userId);
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    return this.generateTokens(user);
+  }
+
+  /** Always completes; does not reveal whether the email exists. */
+  async resendVerification(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user?.isActive || user.isEmailVerified) {
+      return;
+    }
+
+    await this.sendVerificationEmail(user);
+  }
+
   /** Issue JWT pair for an existing user (e.g. after OIDC callback). */
   async issueTokensForUser(user: User): Promise<AuthResponseDto> {
     return this.generateTokens(user);
@@ -145,6 +192,34 @@ export class AuthService {
    * Active organisation: lowest role priority wins (OWNER > ADMIN > MEMBER),
    * then earliest membership `createdAt` as tiebreaker.
    */
+  private async sendVerificationEmail(user: User): Promise<void> {
+    if (user.isEmailVerified) {
+      return;
+    }
+
+    const token = uuidV4();
+    const ttl = this.config.get<number>(
+      'app.emailVerification.tokenTtlSeconds',
+      86_400,
+    );
+    await this.redis.set(`${EMAIL_VERIFY_PREFIX}${token}`, user.id, ttl);
+
+    try {
+      await this.emailService.sendEmail(
+        EmailVerificationEmail.create(this.config, {
+          to: user.email,
+          firstName: user.firstName,
+          token,
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Email verification failed for ${user.email}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
+  }
+
   private async resolveActiveMembershipForUser(
     userId: string,
   ): Promise<OrganisationMembership | null> {
