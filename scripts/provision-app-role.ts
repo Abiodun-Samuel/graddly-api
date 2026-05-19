@@ -33,6 +33,11 @@ function quoteIdent(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
+/** Postgres does not accept bind params in ROLE ... PASSWORD clauses. */
+function quoteLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 async function main(): Promise<void> {
   const migratorUser = requireIdentifier(
     'DB_MIGRATION_USERNAME',
@@ -58,16 +63,16 @@ async function main(): Promise<void> {
       [appRole],
     );
 
+    const password = quoteLiteral(appPassword);
+
     if (!roleExists.rows[0]?.exists) {
       await client.query(
-        `CREATE ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD $1 NOSUPERUSER NOBYPASSRLS`,
-        [appPassword],
+        `CREATE ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD ${password} NOSUPERUSER NOBYPASSRLS`,
       );
       console.log(`Created role "${appRole}".`);
     } else {
       await client.query(
-        `ALTER ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD $1 NOSUPERUSER NOBYPASSRLS`,
-        [appPassword],
+        `ALTER ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD ${password} NOSUPERUSER NOBYPASSRLS`,
       );
       console.log(`Updated role "${appRole}" (password refreshed).`);
     }
@@ -84,7 +89,26 @@ async function main(): Promise<void> {
     await client.query(
       `GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${role}`,
     );
-    await client.query(`GRANT USAGE ON ALL TYPES IN SCHEMA public TO ${role}`);
+    // Postgres has no "ALL TYPES IN SCHEMA"; grant USAGE on each enum in public.
+    await client.query(`
+DO $grant$
+DECLARE
+  type_rec RECORD;
+BEGIN
+  FOR type_rec IN
+    SELECT n.nspname AS schema_name, t.typname AS type_name
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typtype = 'e'
+  LOOP
+    EXECUTE format(
+      'GRANT USAGE ON TYPE %I.%I TO %I',
+      type_rec.schema_name,
+      type_rec.type_name,
+      '${appRole}'
+    );
+  END LOOP;
+END $grant$`);
     await client.query(
       `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO ${role}`,
     );
