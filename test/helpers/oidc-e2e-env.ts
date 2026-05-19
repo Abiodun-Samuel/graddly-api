@@ -15,6 +15,7 @@ export function applyOidcE2eEnv(): void {
   process.env.OIDC_VTR = '';
   process.env.OIDC_SESSION_SECRET = 'e2e-oidc-session-secret-min-32-chars';
   process.env.OIDC_SESSION_TTL_SECONDS = '600';
+  process.env.OIDC_PROVISIONING_MODE = 'auto_create';
   delete process.env.OIDC_SUCCESS_REDIRECT_URI;
 
   resetEnvCache();

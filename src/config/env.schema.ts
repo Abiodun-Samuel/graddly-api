@@ -69,6 +69,10 @@ export const envSchema = z
       .max(86_400)
       .default(600),
     OIDC_SUCCESS_REDIRECT_URI: z.string().url().optional(),
+
+    OIDC_PROVISIONING_MODE: z
+      .enum(['auto_create', 'link_existing'])
+      .default('auto_create'),
   })
   .superRefine((data, ctx) => {
     const deployed =

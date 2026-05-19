@@ -69,6 +69,20 @@ export class OidcConfigurationService implements OnModuleInit {
     };
   }
 
+  getIssuer(): string {
+    const configured = this.config.get<string | undefined>('app.oidc.issuer');
+    if (configured?.trim()) {
+      return configured.trim();
+    }
+
+    const metadataIssuer = this.configuration?.serverMetadata()?.issuer;
+    if (typeof metadataIssuer === 'string' && metadataIssuer.trim()) {
+      return metadataIssuer.trim();
+    }
+
+    throw new ServiceUnavailableException('OIDC issuer is not available');
+  }
+
   private async discover(): Promise<void> {
     const discoveryUrl = this.config.get<string | undefined>(
       'app.oidc.discoveryUrl',

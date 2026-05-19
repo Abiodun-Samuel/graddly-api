@@ -44,6 +44,12 @@ export class OidcStrategy extends PassportStrategy(
         typeof claims?.email_verified === 'boolean'
           ? claims.email_verified
           : undefined,
+      givenName:
+        typeof claims?.given_name === 'string' ? claims.given_name : undefined,
+      familyName:
+        typeof claims?.family_name === 'string'
+          ? claims.family_name
+          : undefined,
       idToken: tokens.id_token,
       accessToken: tokens.access_token,
     };

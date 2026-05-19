@@ -55,6 +55,7 @@ export default registerAs('app', () => {
         'change-me-in-production',
       sessionTtlSeconds: e.OIDC_SESSION_TTL_SECONDS,
       successRedirectUri: e.OIDC_SUCCESS_REDIRECT_URI,
+      provisioningMode: e.OIDC_PROVISIONING_MODE,
     },
   };
 });

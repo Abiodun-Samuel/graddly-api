@@ -3,10 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { User } from '../../users/entities/user.entity.js';
-import { UsersService } from '../../users/users.service.js';
 import { AuthService } from '../auth.service.js';
 
+import { OidcAccountLinkingService } from './oidc-account-linking.service.js';
 import { OidcAuthService } from './oidc-auth.service.js';
+import { OidcConfigurationService } from './oidc-configuration.service.js';
 
 describe('OidcAuthService', () => {
   let service: OidcAuthService;
@@ -15,8 +16,12 @@ describe('OidcAuthService', () => {
     issueTokensForUser: jest.fn(),
   };
 
-  const usersService = {
-    findByEmail: jest.fn(),
+  const oidcAccountLinking = {
+    resolveUserForLogin: jest.fn(),
+  };
+
+  const oidcConfiguration = {
+    getIssuer: jest.fn(),
   };
 
   const configService = {
@@ -35,13 +40,16 @@ describe('OidcAuthService', () => {
       accessToken: 'access',
       refreshToken: 'refresh',
     });
+    oidcConfiguration.getIssuer.mockReturnValue('https://oidc.test.example');
+    oidcAccountLinking.resolveUserForLogin.mockResolvedValue(mockUser);
     configService.get.mockReturnValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OidcAuthService,
         { provide: AuthService, useValue: authService },
-        { provide: UsersService, useValue: usersService },
+        { provide: OidcAccountLinkingService, useValue: oidcAccountLinking },
+        { provide: OidcConfigurationService, useValue: oidcConfiguration },
         { provide: ConfigService, useValue: configService },
       ],
     }).compile();
@@ -49,9 +57,7 @@ describe('OidcAuthService', () => {
     service = module.get(OidcAuthService);
   });
 
-  it('issues tokens for verified email with existing user', async () => {
-    usersService.findByEmail.mockResolvedValue(mockUser);
-
+  it('issues tokens for verified email with resolved user', async () => {
     const tokens = await service.completeLogin({
       sub: 'one-login-sub',
       email: 'user@example.com',
@@ -59,6 +65,15 @@ describe('OidcAuthService', () => {
     });
 
     expect(tokens).toEqual({ accessToken: 'access', refreshToken: 'refresh' });
+    expect(oidcConfiguration.getIssuer).toHaveBeenCalled();
+    expect(oidcAccountLinking.resolveUserForLogin).toHaveBeenCalledWith(
+      {
+        sub: 'one-login-sub',
+        email: 'user@example.com',
+        emailVerified: true,
+      },
+      'https://oidc.test.example',
+    );
     expect(authService.issueTokensForUser).toHaveBeenCalledWith(mockUser);
   });
 
@@ -66,6 +81,7 @@ describe('OidcAuthService', () => {
     await expect(
       service.completeLogin({ sub: 'one-login-sub', emailVerified: true }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(oidcAccountLinking.resolveUserForLogin).not.toHaveBeenCalled();
   });
 
   it('rejects when email is not verified', async () => {
@@ -76,22 +92,11 @@ describe('OidcAuthService', () => {
         emailVerified: false,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it('rejects when no linked user exists', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
-
-    await expect(
-      service.completeLogin({
-        sub: 'one-login-sub',
-        email: 'unknown@example.com',
-        emailVerified: true,
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(oidcAccountLinking.resolveUserForLogin).not.toHaveBeenCalled();
   });
 
   it('rejects deactivated accounts', async () => {
-    usersService.findByEmail.mockResolvedValue({
+    oidcAccountLinking.resolveUserForLogin.mockResolvedValue({
       ...mockUser,
       isActive: false,
     });

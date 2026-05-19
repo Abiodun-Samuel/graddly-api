@@ -33,14 +33,19 @@ Prefer setting `OIDC_ISSUER` to the issuer URL so `openid-client` can validate i
 - If `OIDC_SUCCESS_REDIRECT_URI` is **unset**: JSON `{ message, data: { accessToken, refreshToken } }` (same shape as `POST /auth/login`).
 - If `OIDC_SUCCESS_REDIRECT_URI` is **set**: `302` redirect to that URL with tokens in the **URL fragment** (e.g. `https://app.example.com/auth/callback#accessToken=...&refreshToken=...`).
 
-### Linked accounts (until OIDC-003)
+### Account linking and provisioning
 
-The callback issues JWTs only when:
+The callback requires a **verified** email from One Login (`email_verified: true`).
 
-1. One Login returns a **verified** email (`email_verified: true`), and
-2. A user with that email already exists in Graddly.
+Resolution order:
 
-Otherwise the API returns `403 Forbidden` with a clear message. Account creation and `sub` linking are **OIDC-003**.
+1. **By `sub`** — if `(issuer, sub)` is already stored in `user_oidc_identities`, log in that user (email in the token must still match the Graddly user).
+2. **By email** — if a user exists with the same email, link this One Login `sub` to that user and mark the email verified.
+3. **Auto-provision** (default) — if no user exists and `OIDC_PROVISIONING_MODE=auto_create`, create a user with a random password, `isEmailVerified=true`, and store the identity link.
+
+Set `OIDC_PROVISIONING_MODE=link_existing` to reject unknown emails with `403` (invite-only / admin-provisioned accounts).
+
+Identity links are stored in `user_oidc_identities` (`issuer`, `subject`, `userId`). One Login account per issuer per user.
 
 ## Session cookie (PKCE / state / nonce)
 
@@ -62,6 +67,7 @@ The Passport OIDC strategy stores PKCE verifiers, `state`, and `nonce` in a Redi
 | `OIDC_SESSION_SECRET` | Yes in prod/staging | Signs the `oidc.sid` session cookie (min 32 chars in deployed envs). Falls back to `JWT_SECRET` in development. |
 | `OIDC_SESSION_TTL_SECONDS` | — | OAuth session lifetime (default `600`). |
 | `OIDC_SUCCESS_REDIRECT_URI` | — | Optional frontend URL for `302` after successful login. |
+| `OIDC_PROVISIONING_MODE` | — | `auto_create` (default) or `link_existing` for first-time unknown emails. |
 
 When `NODE_ENV` is `production` or `staging`, non-empty `OIDC_CLIENT_SECRET` and `OIDC_SESSION_SECRET` (min 32 characters) are required if OIDC is enabled.
 
@@ -81,7 +87,7 @@ OIDC_SESSION_SECRET=your-local-session-secret-at-least-32-chars \
 yarn start:dev
 ```
 
-Open `http://localhost:3000/api/v1/auth/oidc/login` in a browser (must already have a Graddly user with the same verified email).
+Open `http://localhost:3000/api/v1/auth/oidc/login` in a browser. With default `auto_create`, a new Graddly user is created on first successful One Login sign-in.
 
 ## Further reading
 

@@ -5,17 +5,19 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { UsersService } from '../../users/users.service.js';
 import { AuthService } from '../auth.service.js';
 import { AuthResponseDto } from '../dto/auth-response.dto.js';
 
 import { IOidcAuthProfile } from './interfaces/oidc-auth-profile.interface.js';
+import { OidcAccountLinkingService } from './oidc-account-linking.service.js';
+import { OidcConfigurationService } from './oidc-configuration.service.js';
 
 @Injectable()
 export class OidcAuthService {
   constructor(
     private readonly authService: AuthService,
-    private readonly usersService: UsersService,
+    private readonly oidcAccountLinking: OidcAccountLinkingService,
+    private readonly oidcConfiguration: OidcConfigurationService,
     private readonly config: ConfigService,
   ) {}
 
@@ -32,12 +34,11 @@ export class OidcAuthService {
       );
     }
 
-    const user = await this.usersService.findByEmail(profile.email);
-    if (!user) {
-      throw new ForbiddenException(
-        'No linked account for this One Login identity. Contact your administrator or sign up with email and password.',
-      );
-    }
+    const issuer = this.oidcConfiguration.getIssuer();
+    const user = await this.oidcAccountLinking.resolveUserForLogin(
+      profile,
+      issuer,
+    );
 
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
