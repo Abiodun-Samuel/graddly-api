@@ -53,7 +53,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 
 | Task | Status | Timeline | SP | Assignee |
 |------|--------|----------|-----|----------|
-| Passport **OIDC** strategy (provider-agnostic) + config placeholders for One Login | Not started | Phase D | 5 | TBD |
+| Passport **OIDC** strategy (provider-agnostic) + config placeholders for One Login | Done | Phase D | 5 | TBD |
 | OAuth callback routes, state/nonce, token exchange | Not started | Phase D | 5 | TBD |
 | Link One Login identity to existing user by verified email + first-time provisioning rules | Not started | Phase D | 5 | TBD |
 | Local email/password: keep; add **password reset** tokens + email template hook (SendGrid stub) | Not started | Phase D | 5 | TBD |

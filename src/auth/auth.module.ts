@@ -12,12 +12,14 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
+import { OidcModule } from './oidc/oidc.module.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
     UsersModule,
     TypeOrmModule.forFeature([OrganisationMembership]),
+    OidcModule.register(),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

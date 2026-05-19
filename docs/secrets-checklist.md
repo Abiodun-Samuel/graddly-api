@@ -19,6 +19,13 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Sentry environment | `SENTRY_ENVIRONMENT` | Set to `staging` or `production` for clean issue separation. |
 | Log shipping | `LOGGLY_TOKEN`, `LOGGLY_SUBDOMAIN` | Optional; omit in dev if unused. |
 
+## When GOV.UK One Login (OIDC) is enabled
+
+| Item | Variable | Notes |
+|------|-----------|--------|
+| OIDC client | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | From One Login service configuration; required when `OIDC_ENABLED=true`. See [oidc-one-login.md](./oidc-one-login.md). |
+| Redirect URI | `OIDC_REDIRECT_URI` | Must match the URL registered in One Login for this environment. |
+
 ## Operational hygiene
 
 - Store secrets in your platform’s secret manager (e.g. AWS Secrets Manager, GCP Secret Manager, Vault), not only in flat `.env` files on disk.

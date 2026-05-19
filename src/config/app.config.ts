@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config';
 
+import { parseOidcVtr, resolveOidcDiscoveryUrl } from './oidc-config.util.js';
 import { getEnv } from './validate-env.js';
 
 export default registerAs('app', () => {
@@ -37,6 +38,17 @@ export default registerAs('app', () => {
       environment: e.SENTRY_ENVIRONMENT || e.NODE_ENV,
       tracesSampleRate: e.SENTRY_TRACES_SAMPLE_RATE,
       profilesSampleRate: e.SENTRY_PROFILES_SAMPLE_RATE,
+    },
+    oidc: {
+      enabled: e.OIDC_ENABLED,
+      discoveryUrl: resolveOidcDiscoveryUrl(e),
+      issuer: e.OIDC_ISSUER?.trim() || undefined,
+      clientId: e.OIDC_CLIENT_ID.trim(),
+      clientSecret: e.OIDC_CLIENT_SECRET,
+      redirectUri: e.OIDC_REDIRECT_URI,
+      scopes: e.OIDC_SCOPES.split(/\s+/).filter(Boolean),
+      uiLocales: e.OIDC_UI_LOCALES,
+      vtr: parseOidcVtr(e.OIDC_VTR),
     },
   };
 });

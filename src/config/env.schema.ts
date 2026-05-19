@@ -45,6 +45,21 @@ export const envSchema = z
     SENTRY_ENVIRONMENT: z.string().optional().default(''),
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
     SENTRY_PROFILES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+
+    OIDC_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+
+    OIDC_ISSUER: z.string().url().optional(),
+    OIDC_DISCOVERY_URL: z.string().url().optional(),
+    OIDC_CLIENT_ID: z.string().optional().default(''),
+    OIDC_CLIENT_SECRET: z.string().optional().default(''),
+    OIDC_REDIRECT_URI: z.string().url().optional(),
+    OIDC_SCOPES: z.string().min(1).default('openid email'),
+    OIDC_UI_LOCALES: z.string().min(1).default('en'),
+    OIDC_VTR: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -75,6 +90,77 @@ export const envSchema = z
           'SWAGGER_PASSWORD must be set (min 12 characters) when NODE_ENV is production or staging.',
         path: ['SWAGGER_PASSWORD'],
       });
+    }
+
+    if (data.OIDC_ENABLED && deployed) {
+      if (!data.OIDC_CLIENT_SECRET?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'OIDC_CLIENT_SECRET must be set when OIDC_ENABLED is true and NODE_ENV is production or staging.',
+          path: ['OIDC_CLIENT_SECRET'],
+        });
+      }
+    }
+  })
+  .superRefine((data, ctx) => {
+    if (!data.OIDC_ENABLED) {
+      return;
+    }
+
+    if (!data.OIDC_CLIENT_ID?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_CLIENT_ID is required when OIDC_ENABLED is true.',
+        path: ['OIDC_CLIENT_ID'],
+      });
+    }
+
+    if (!data.OIDC_CLIENT_SECRET?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_CLIENT_SECRET is required when OIDC_ENABLED is true.',
+        path: ['OIDC_CLIENT_SECRET'],
+      });
+    }
+
+    if (!data.OIDC_REDIRECT_URI) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_REDIRECT_URI is required when OIDC_ENABLED is true.',
+        path: ['OIDC_REDIRECT_URI'],
+      });
+    }
+
+    const hasDiscovery =
+      Boolean(data.OIDC_DISCOVERY_URL?.trim()) ||
+      Boolean(data.OIDC_ISSUER?.trim());
+
+    if (!hasDiscovery) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'OIDC_DISCOVERY_URL or OIDC_ISSUER is required when OIDC_ENABLED is true.',
+        path: ['OIDC_DISCOVERY_URL'],
+      });
+    }
+
+    if (data.OIDC_VTR?.trim()) {
+      try {
+        const parsed: unknown = JSON.parse(data.OIDC_VTR);
+        if (
+          !Array.isArray(parsed) ||
+          !parsed.every((item) => typeof item === 'string')
+        ) {
+          throw new Error('invalid');
+        }
+      } catch {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'OIDC_VTR must be a JSON array of strings when set.',
+          path: ['OIDC_VTR'],
+        });
+      }
     }
   });
 
