@@ -14,6 +14,7 @@ import { AuthService } from './auth.service.js';
 import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { OidcModule } from './oidc/oidc.module.js';
+import { RefreshTokenService } from './refresh-token.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
@@ -27,12 +28,16 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('app.jwt.secret'),
+        signOptions: {
+          expiresIn: config.get<number>('app.jwt.accessExpiresInSeconds', 900),
+        },
       }),
     }),
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
+    RefreshTokenService,
     JwtStrategy,
     ActiveOrganisationResolver,
     ActiveOrganisationGuard,

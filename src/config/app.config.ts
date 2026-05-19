@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config';
 
+import { parseDurationToSeconds } from './jwt-duration.util.js';
 import { parseOidcVtr, resolveOidcDiscoveryUrl } from './oidc-config.util.js';
 import { getEnv } from './validate-env.js';
 
@@ -17,6 +18,17 @@ export default registerAs('app', () => {
       secret: e.JWT_SECRET,
       accessExpiresIn: e.JWT_ACCESS_EXPIRES_IN,
       refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
+      accessExpiresInSeconds: parseDurationToSeconds(
+        e.JWT_ACCESS_EXPIRES_IN,
+        900,
+      ),
+      refreshExpiresInSeconds: parseDurationToSeconds(
+        e.JWT_REFRESH_EXPIRES_IN,
+        604_800,
+      ),
+    },
+    refresh: {
+      reuseGraceSeconds: e.REFRESH_REUSE_GRACE_SECONDS,
     },
     throttle: {
       enabled: e.THROTTLE_ENABLED,

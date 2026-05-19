@@ -11,6 +11,7 @@ import { RedisService } from '../../redis/redis.service.js';
 import { User } from '../../users/entities/user.entity.js';
 import { UsersService } from '../../users/users.service.js';
 import { AuthService } from '../auth.service.js';
+import { RefreshTokenService } from '../refresh-token.service.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -50,13 +51,19 @@ const mockJwtService = {
 const mockConfigService = {
   get: jest.fn((key: string, fallback?: string) => {
     const values: Record<string, string | number> = {
-      ['app.jwt.accessExpiresIn']: '15m',
-      ['app.jwt.refreshExpiresIn']: '7d',
+      ['app.jwt.accessExpiresInSeconds']: 900,
       ['app.passwordReset.tokenTtlSeconds']: 3600,
       ['app.emailVerification.tokenTtlSeconds']: 86_400,
     };
     return values[key] ?? fallback;
   }),
+};
+
+const mockRefreshTokenService = {
+  issue: jest.fn().mockResolvedValue('new-refresh-token'),
+  consume: jest.fn(),
+  revoke: jest.fn(),
+  revokeAllForUser: jest.fn(),
 };
 
 const mockRedisService = {
@@ -85,6 +92,10 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisService, useValue: mockRedisService },
+        {
+          provide: RefreshTokenService,
+          useValue: mockRefreshTokenService,
+        },
         { provide: EmailService, useValue: mockEmailService },
         {
           provide: getRepositoryToken(OrganisationMembership),
@@ -187,7 +198,10 @@ describe('AuthService', () => {
     const refreshToken = 'valid-refresh-uuid';
 
     it('should return new tokens for a valid refresh token when email is verified', async () => {
-      mockRedisService.get.mockResolvedValue(mockUser.id);
+      mockRefreshTokenService.consume.mockResolvedValue({
+        userId: mockUser.id,
+        newRefreshToken: 'rotated-refresh-token',
+      });
       mockUsersService.findById.mockResolvedValue({
         ...mockUser,
         isEmailVerified: true,
@@ -195,18 +209,19 @@ describe('AuthService', () => {
 
       const result = await authService.refresh(refreshToken);
 
-      expect(mockRedisService.get).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
+      expect(mockRefreshTokenService.consume).toHaveBeenCalledWith(
+        refreshToken,
       );
-      expect(mockRedisService.del).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
-      );
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).toEqual({
+        accessToken: 'signed-jwt-token',
+        refreshToken: 'rotated-refresh-token',
+      });
     });
 
     it('should throw UnauthorizedException for invalid refresh token', async () => {
-      mockRedisService.get.mockResolvedValue(null);
+      mockRefreshTokenService.consume.mockRejectedValue(
+        new UnauthorizedException('Invalid or expired refresh token'),
+      );
 
       await expect(authService.refresh(refreshToken)).rejects.toThrow(
         new UnauthorizedException('Invalid or expired refresh token'),
@@ -214,7 +229,10 @@ describe('AuthService', () => {
     });
 
     it('should throw ForbiddenException when email is not verified', async () => {
-      mockRedisService.get.mockResolvedValue(mockUser.id);
+      mockRefreshTokenService.consume.mockResolvedValue({
+        userId: mockUser.id,
+        newRefreshToken: 'rotated-refresh-token',
+      });
       mockUsersService.findById.mockResolvedValue(mockUser);
 
       await expect(authService.refresh(refreshToken)).rejects.toThrow(
@@ -224,13 +242,21 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should delete the refresh token from Redis', async () => {
+    it('should revoke the refresh token', async () => {
       const refreshToken = 'token-to-invalidate';
 
       await authService.logout(refreshToken);
 
-      expect(mockRedisService.del).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
+      expect(mockRefreshTokenService.revoke).toHaveBeenCalledWith(refreshToken);
+    });
+  });
+
+  describe('logoutAll', () => {
+    it('should revoke all refresh sessions for the user', async () => {
+      await authService.logoutAll(mockUser.id);
+
+      expect(mockRefreshTokenService.revokeAllForUser).toHaveBeenCalledWith(
+        mockUser.id,
       );
     });
   });
@@ -289,6 +315,9 @@ describe('AuthService', () => {
       expect(mockUsersService.updatePassword).toHaveBeenCalledWith(
         mockUser.id,
         'N3wP@ssw0rd!',
+      );
+      expect(mockRefreshTokenService.revokeAllForUser).toHaveBeenCalledWith(
+        mockUser.id,
       );
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');

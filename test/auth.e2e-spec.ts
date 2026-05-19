@@ -339,6 +339,93 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('Refresh token hardening', () => {
+    it('invalidates other sessions when a rotated token is reused', async () => {
+      const email = `reuse-detect-${Date.now()}@example.com`;
+      const password = 'P@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Reuse',
+          lastName: 'Detect',
+          email,
+          password,
+        })
+        .expect(201);
+
+      await verifyUserEmail(app, email);
+
+      const deviceA = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+      const tokenA = deviceA.body.data.refreshToken as string;
+
+      const deviceB = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+      const tokenB = deviceB.body.data.refreshToken as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenA })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenA })
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenB })
+        .expect(401);
+    });
+  });
+
+  describe('POST /auth/logout-all', () => {
+    it('returns 204 and invalidates all refresh tokens for the user', async () => {
+      const email = `logout-all-${Date.now()}@example.com`;
+      const password = 'P@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Logout',
+          lastName: 'All',
+          email,
+          password,
+        })
+        .expect(201);
+
+      const verified = await verifyUserEmail(app, email);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout-all')
+        .set('Authorization', `Bearer ${verified.accessToken}`)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: verified.refreshToken })
+        .expect(401);
+    });
+
+    it('returns 401 without a bearer token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/logout-all')
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/logout-all',
+      });
+    });
+  });
+
   describe('POST /auth/logout', () => {
     let logoutAccessToken: string;
     let logoutRefreshToken: string;

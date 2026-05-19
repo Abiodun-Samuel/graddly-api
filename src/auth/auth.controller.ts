@@ -237,7 +237,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Refresh an access token',
     description:
-      'Exchanges a valid refresh token for a new access/refresh token pair. The old refresh token is invalidated (rotation). Fails if the refresh token is expired or already used.',
+      'Exchanges a valid refresh token for a new access/refresh token pair. The old refresh token is invalidated (rotation). Reuse of a rotated token invalidates all refresh sessions for that user. Fails if the refresh token is expired or already used.',
   })
   @ApiOkResponse({
     description: 'Tokens refreshed successfully',
@@ -271,6 +271,25 @@ export class AuthController {
   })
   logout(@Body() dto: RefreshTokenDto): Promise<void> {
     return this.authService.logout(dto.refreshToken);
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ResponseMessage('Logged out from all devices')
+  @ApiOperation({
+    summary: 'Log out from all devices',
+    description:
+      'Invalidates every refresh token for the current user by bumping the session version. Existing access tokens remain valid until they expire. Requires a valid access token.',
+  })
+  @ApiNoContentResponse({ description: 'All refresh sessions invalidated' })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+    type: ErrorResponseDto,
+  })
+  logoutAll(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    return this.authService.logoutAll(user.id);
   }
 
   @Get('me')

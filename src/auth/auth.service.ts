@@ -26,8 +26,8 @@ import { AuthResponseDto } from './dto/auth-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { IJwtPayload } from './interfaces/jwt-payload.interface.js';
+import { RefreshTokenService } from './refresh-token.service.js';
 
-const REFRESH_PREFIX = 'refresh:';
 const PASSWORD_RESET_PREFIX = 'password-reset:';
 const EMAIL_VERIFY_PREFIX = 'email-verify:';
 
@@ -47,6 +47,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly redis: RedisService,
+    private readonly refreshTokenService: RefreshTokenService,
     private readonly emailService: EmailService,
     @InjectRepository(OrganisationMembership)
     private readonly membershipRepo: Repository<OrganisationMembership>,
@@ -80,12 +81,8 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<AuthResponseDto> {
-    const userId = await this.redis.get(`${REFRESH_PREFIX}${refreshToken}`);
-    if (!userId) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
-
-    await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
+    const { userId, newRefreshToken } =
+      await this.refreshTokenService.consume(refreshToken);
 
     const user = await this.usersService.findById(userId);
     if (!user.isActive) {
@@ -95,11 +92,15 @@ export class AuthService {
       throw new ForbiddenException('Email address not verified');
     }
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, newRefreshToken);
   }
 
   async logout(refreshToken: string): Promise<void> {
-    await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
+    await this.refreshTokenService.revoke(refreshToken);
+  }
+
+  async logoutAll(userId: string): Promise<void> {
+    await this.refreshTokenService.revokeAllForUser(userId);
   }
 
   /** Always completes; does not reveal whether the email exists. */
@@ -145,6 +146,7 @@ export class AuthService {
 
     await this.redis.del(`${PASSWORD_RESET_PREFIX}${token}`);
     await this.usersService.updatePassword(userId, password);
+    await this.refreshTokenService.revokeAllForUser(userId);
 
     const user = await this.usersService.findById(userId);
     if (!user.isActive) {
@@ -188,10 +190,6 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  /**
-   * Active organisation: lowest role priority wins (OWNER > ADMIN > MEMBER),
-   * then earliest membership `createdAt` as tiebreaker.
-   */
   private async sendVerificationEmail(user: User): Promise<void> {
     if (user.isEmailVerified) {
       return;
@@ -244,7 +242,10 @@ export class AuthService {
     return sorted[0] ?? null;
   }
 
-  private async generateTokens(user: User): Promise<AuthResponseDto> {
+  private async generateTokens(
+    user: User,
+    existingRefreshToken?: string,
+  ): Promise<AuthResponseDto> {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
 
@@ -261,35 +262,17 @@ export class AuthService {
         : {}),
     };
 
-    const accessTtl = this.parseToSeconds(
-      this.config.get<string>('app.jwt.accessExpiresIn', '15m'),
+    const accessTtl = this.config.get<number>(
+      'app.jwt.accessExpiresInSeconds',
+      900,
     );
     const accessToken = this.jwtService.sign(jwtPayload, {
       expiresIn: accessTtl,
     });
 
-    const refreshToken = uuidV4();
-    const refreshTtl = this.parseToSeconds(
-      this.config.get<string>('app.jwt.refreshExpiresIn', '7d'),
-    );
-    await this.redis.set(
-      `${REFRESH_PREFIX}${refreshToken}`,
-      user.id,
-      refreshTtl,
-    );
+    const refreshToken =
+      existingRefreshToken ?? (await this.refreshTokenService.issue(user.id));
 
     return { accessToken, refreshToken };
-  }
-
-  private parseToSeconds(duration: string): number {
-    const units: Record<string, number> = {
-      s: 1,
-      m: 60,
-      h: 3600,
-      d: 86400,
-    };
-    const match = /^(\d+)([smhd])$/.exec(duration);
-    if (!match) return 604800; // default 7 days
-    return parseInt(match[1], 10) * (units[match[2]] ?? 1);
   }
 }

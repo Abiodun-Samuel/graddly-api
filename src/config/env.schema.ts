@@ -20,6 +20,12 @@ export const envSchema = z
     JWT_SECRET: z.string().default('change-me-in-production'),
     JWT_ACCESS_EXPIRES_IN: z.string().min(1).default('15m'),
     JWT_REFRESH_EXPIRES_IN: z.string().min(1).default('7d'),
+    REFRESH_REUSE_GRACE_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(300)
+      .default(30),
 
     REDIS_HOST: z.string().min(1).default('localhost'),
     REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),

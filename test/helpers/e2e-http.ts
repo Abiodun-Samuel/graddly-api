@@ -129,3 +129,13 @@ export async function loginVerifiedUser(
     refreshToken: res.body.data.refreshToken as string,
   };
 }
+
+export async function logoutAll(
+  app: INestApplication<App>,
+  accessToken: string,
+): Promise<void> {
+  await request(app.getHttpServer())
+    .post('/api/v1/auth/logout-all')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .expect(204);
+}

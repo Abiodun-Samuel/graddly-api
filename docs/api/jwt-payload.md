@@ -2,6 +2,8 @@
 
 The **access token** is a JWT signed by the API. Clients may decode it (without verifying locally; verification happens on the server) to read tenant context.
 
+See [auth-tokens.md](../auth-tokens.md) for access/refresh lifetimes, rotation, and logout behaviour.
+
 ## Claims
 
 | Claim   | Type       | Required | Description |

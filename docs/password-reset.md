@@ -46,5 +46,5 @@ Leave `EMAIL_PROVIDER=noop` to skip outbound email (debug log only in developmen
 ## Security notes
 
 - Reset tokens are single-use (deleted after successful reset).
-- Existing refresh tokens are **not** invalidated on password reset (documented follow-up).
+- All refresh sessions are invalidated on successful password reset (see [auth-tokens.md](./auth-tokens.md)).
 - Rate limit: 5 requests/minute per route (same as login).
