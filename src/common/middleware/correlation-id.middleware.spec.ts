@@ -98,7 +98,10 @@ describe('CorrelationIdMiddleware', () => {
     const middleware = new CorrelationIdMiddleware();
     const req = makeReq({});
     const setHeader = jest.fn();
-    const res = { setHeader } as unknown as Response;
+    const res = {
+      setHeader,
+      on: jest.fn(),
+    } as unknown as Response;
     const next = jest.fn() as NextFunction;
 
     middleware.use(req, res, next);
@@ -118,7 +121,10 @@ describe('CorrelationIdMiddleware', () => {
     const middleware = new CorrelationIdMiddleware();
     const req = makeReq({ requestId: 'client-id' });
     const setHeader = jest.fn();
-    const res = { setHeader } as unknown as Response;
+    const res = {
+      setHeader,
+      on: jest.fn(),
+    } as unknown as Response;
     const next = jest.fn() as NextFunction;
 
     middleware.use(req, res, next);

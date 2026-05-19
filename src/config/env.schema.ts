@@ -34,8 +34,8 @@ export const envSchema = z
     TENANT_DB_CONTEXT_ENABLED: z
       .string()
       .optional()
-      .default('false')
-      .transform((v) => v === 'true'),
+      .default('true')
+      .transform((v) => v !== 'false'),
 
     SWAGGER_PASSWORD: z.string().optional().default(''),
     LOGGLY_TOKEN: z.string().optional().default(''),

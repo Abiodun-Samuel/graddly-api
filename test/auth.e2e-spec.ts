@@ -2,7 +2,6 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
@@ -264,7 +263,6 @@ describe('AuthController (e2e)', () => {
   describe('GET /auth/active-organisation', () => {
     let ctxToken: string;
     let ctxRefreshToken: string;
-    let userId: string;
 
     beforeAll(async () => {
       const login = await request(app.getHttpServer())
@@ -273,10 +271,6 @@ describe('AuthController (e2e)', () => {
         .expect(200);
       ctxToken = login.body.data.accessToken as string;
       ctxRefreshToken = login.body.data.refreshToken as string;
-      const payload = JSON.parse(
-        Buffer.from(ctxToken.split('.')[1], 'base64url').toString('utf8'),
-      ) as { sub: string };
-      userId = payload.sub;
     });
 
     it('returns 403 when user has no organisation context', async () => {
@@ -302,12 +296,6 @@ describe('AuthController (e2e)', () => {
         .expect(201);
 
       const orgId = create.body.data.id as string;
-
-      const dataSource = app.get(DataSource);
-      await dataSource.query(
-        `INSERT INTO organisation_memberships ("id", "createdAt", "updatedAt", "isDeleted", "deletedAt", "role", "userId", "organisationId") VALUES (uuid_generate_v4(), NOW(), NOW(), false, NULL, $1::organisation_role, $2, $3)`,
-        ['owner', userId, orgId],
-      );
 
       const refreshed = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')

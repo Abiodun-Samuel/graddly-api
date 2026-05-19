@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { v4 as uuidV4 } from 'uuid';
 
+import { setCurrentUserId } from '../common/context/correlation-id-context.js';
+import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { RedisService } from '../redis/redis.service.js';
@@ -105,12 +107,15 @@ export class AuthService {
   }
 
   private async generateTokens(user: User): Promise<AuthResponseDto> {
+    setCurrentUserId(user.id);
+    setLastKnownUserIdForGuc(user.id);
+
     const membership = await this.resolveActiveMembershipForUser(user.id);
 
     const jwtPayload: IJwtPayload = {
       sub: user.id,
       email: user.email,
-      ...(membership
+      ...(membership?.organisation
         ? {
             orgId: membership.organisation.id,
             roles: [membership.role],

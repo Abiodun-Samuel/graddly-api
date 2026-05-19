@@ -28,7 +28,15 @@
 ## Project setup
 
 ```bash
-$ yarn install
+yarn install
+cp .env.example .env
+```
+
+Configure Postgres and Redis, then follow **[Database setup](docs/database-setup.md)** (migrations as migrator, `yarn db:provision-role` for the app user, then run the API).
+
+```bash
+yarn db:setup    # migration:run + db:provision-role
+yarn start:dev
 ```
 
 ## Compile and run the project

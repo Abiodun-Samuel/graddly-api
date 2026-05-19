@@ -2,22 +2,26 @@ import 'dotenv/config';
 import './env-bootstrap.js';
 import 'reflect-metadata';
 
-import { DataSource } from 'typeorm';
+import '../database/postgres-query-runner.patch.js';
 
-import { TenantSessionSubscriber } from '../database/tenant-session.subscriber.js';
+import { DataSource } from 'typeorm';
 
 import { getEnv } from './validate-env.js';
 
 const e = getEnv();
 
+/** Migrator credentials for CLI; falls back to app DB_* when unset. */
+const migrationUsername =
+  process.env.DB_MIGRATION_USERNAME?.trim() || e.DB_USERNAME;
+const migrationPassword = process.env.DB_MIGRATION_PASSWORD ?? e.DB_PASSWORD;
+
 export default new DataSource({
   type: 'postgres',
   host: e.DB_HOST,
   port: e.DB_PORT,
-  username: e.DB_USERNAME,
-  password: e.DB_PASSWORD,
+  username: migrationUsername,
+  password: migrationPassword,
   database: e.DB_NAME,
   entities: [__dirname + '/../**/*.entity.js'],
   migrations: [__dirname + '/../migrations/*.js'],
-  subscribers: [TenantSessionSubscriber],
 });

@@ -6,9 +6,71 @@ export interface ICorrelationIdStore {
   correlationId: string;
   /** Active organisation UUID for optional Postgres RLS session var; set by ActiveOrganisationGuard. */
   currentOrganisationId?: string;
+  /** Authenticated user UUID for Postgres RLS; set during JWT validation. */
+  currentUserId?: string;
+  /** When true, RLS bootstrap policies apply (public auth routes). */
+  rlsBootstrap?: boolean;
 }
 
 const storage = new AsyncLocalStorage<ICorrelationIdStore>();
+
+export interface ITenantRequestContext {
+  currentOrganisationId?: string;
+  currentUserId?: string;
+  rlsBootstrap?: boolean;
+}
+
+const tenantByCorrelationId = new Map<string, ITenantRequestContext>();
+
+/** Fallback when TypeORM/pg runs outside the ALS continuation (e.g. pool callbacks). */
+let synchronousTenantFallback: ITenantRequestContext = {};
+
+export function resetSynchronousTenantFallback(): void {
+  synchronousTenantFallback = {};
+}
+
+export function getSynchronousTenantFallback(): ITenantRequestContext {
+  return synchronousTenantFallback;
+}
+
+export function setTenantRequestContext(partial: ITenantRequestContext): void {
+  synchronousTenantFallback = {
+    ...synchronousTenantFallback,
+    ...partial,
+  };
+  const correlationId = getCorrelationId();
+  if (!correlationId) {
+    return;
+  }
+  const previous = tenantByCorrelationId.get(correlationId) ?? {};
+  tenantByCorrelationId.set(correlationId, { ...previous, ...partial });
+}
+
+export function getTenantRequestContext(): ITenantRequestContext | undefined {
+  const store = storage.getStore();
+  if (store) {
+    return {
+      currentOrganisationId: store.currentOrganisationId,
+      currentUserId: store.currentUserId,
+      rlsBootstrap: store.rlsBootstrap,
+    };
+  }
+  const correlationId = getCorrelationId();
+  const fromMap = correlationId
+    ? tenantByCorrelationId.get(correlationId)
+    : undefined;
+  if (fromMap) {
+    return fromMap;
+  }
+  if (Object.keys(synchronousTenantFallback).length > 0) {
+    return synchronousTenantFallback;
+  }
+  return undefined;
+}
+
+export function clearTenantRequestContext(correlationId: string): void {
+  tenantByCorrelationId.delete(correlationId);
+}
 
 export function getCorrelationId(): string | undefined {
   return storage.getStore()?.correlationId;
@@ -23,6 +85,31 @@ export function setCurrentOrganisationId(id: string | undefined): void {
   if (store) {
     store.currentOrganisationId = id;
   }
+  setTenantRequestContext({ currentOrganisationId: id });
+}
+
+export function getCurrentUserId(): string | undefined {
+  return storage.getStore()?.currentUserId;
+}
+
+export function setCurrentUserId(id: string | undefined): void {
+  const store = storage.getStore();
+  if (store) {
+    store.currentUserId = id;
+  }
+  setTenantRequestContext({ currentUserId: id });
+}
+
+export function getRlsBootstrap(): boolean {
+  return storage.getStore()?.rlsBootstrap === true;
+}
+
+export function setRlsBootstrap(enabled: boolean): void {
+  const store = storage.getStore();
+  if (store) {
+    store.rlsBootstrap = enabled;
+  }
+  setTenantRequestContext({ rlsBootstrap: enabled });
 }
 
 /** Prefer AsyncLocalStorage; fallback for code outside the request ALS callback. */
@@ -46,4 +133,20 @@ export function runWithCorrelationId<T>(
       ? { correlationId: correlationIdOrStore }
       : correlationIdOrStore;
   return storage.run(store, callback);
+}
+
+/**
+ * Binds the store for the remainder of the async request chain (Express + Nest).
+ * Prefer this over {@link runWithCorrelationId} in HTTP middleware so context survives
+ * after `next()` returns.
+ */
+export function enterCorrelationContext(
+  correlationIdOrStore: string | ICorrelationIdStore,
+): ICorrelationIdStore {
+  const store: ICorrelationIdStore =
+    typeof correlationIdOrStore === 'string'
+      ? { correlationId: correlationIdOrStore }
+      : correlationIdOrStore;
+  storage.enterWith(store);
+  return store;
 }

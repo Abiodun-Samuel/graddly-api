@@ -8,7 +8,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 |------|-----------|--------|
 | JWT signing key | `JWT_SECRET` | Min **32** characters. Never use `change-me-in-production`. Rotate if leaked. |
 | Swagger UI basic auth | `SWAGGER_PASSWORD` | Min **12** characters when `NODE_ENV` is `production` or `staging`. |
-| Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. |
+| Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. See [database-setup.md](./database-setup.md) for migrator vs app roles and RLS. |
 | Redis | `REDIS_HOST`, `REDIS_PORT` | TLS and auth if exposed beyond the private network. |
 
 ## Strongly recommended

@@ -4,7 +4,12 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import { NextFunction, Request, Response } from 'express';
 
-import { runWithCorrelationId } from '../context/correlation-id-context.js';
+import { clearLastKnownUserIdForGuc } from '../../database/apply-tenant-gucs.js';
+import {
+  clearTenantRequestContext,
+  enterCorrelationContext,
+  resetSynchronousTenantFallback,
+} from '../context/correlation-id-context.js';
 
 const MAX_INCOMING_ID_LENGTH = 128;
 
@@ -39,9 +44,16 @@ export class CorrelationIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const correlationId = resolveCorrelationId(req);
     res.setHeader('X-Request-Id', correlationId);
-    runWithCorrelationId(correlationId, () => {
-      Sentry.getIsolationScope().setTag('correlation_id', correlationId);
-      next();
-    });
+    resetSynchronousTenantFallback();
+    enterCorrelationContext(correlationId);
+    Sentry.getIsolationScope().setTag('correlation_id', correlationId);
+    const clearRequestTenantState = (): void => {
+      resetSynchronousTenantFallback();
+      clearLastKnownUserIdForGuc();
+      clearTenantRequestContext(correlationId);
+    };
+    res.on('finish', clearRequestTenantState);
+    res.on('close', clearRequestTenantState);
+    next();
   }
 }

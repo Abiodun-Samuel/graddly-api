@@ -1,7 +1,7 @@
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
@@ -11,11 +11,12 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
+import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
+import { RlsBootstrapMiddleware } from './common/middleware/rls-bootstrap.middleware.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
 import { validateEnv } from './config/validate-env.js';
-import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { HealthModule } from './health/health.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
@@ -44,7 +45,6 @@ import { UsersModule } from './users/users.module.js';
         migrationsRun: true,
         synchronize: false,
         logging: config.get<boolean>('database.logging'),
-        subscribers: [TenantSessionSubscriber],
       }),
     }),
     ThrottlerModule.forRootAsync({
@@ -76,10 +76,13 @@ import { UsersModule } from './users/users.module.js';
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: CustomThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer
+      .apply(CorrelationIdMiddleware, RlsBootstrapMiddleware)
+      .forRoutes('*');
   }
 }

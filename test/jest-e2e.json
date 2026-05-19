@@ -11,5 +11,6 @@
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
   "setupFiles": ["./load-env.ts", "./import-instrument.ts"],
+  "globalSetup": "./global-setup.ts",
   "globalTeardown": "./global-teardown.ts"
 }

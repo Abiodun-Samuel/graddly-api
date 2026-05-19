@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   ConflictException,
   Injectable,
@@ -6,9 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { setCurrentUserId } from '../common/context/correlation-id-context.js';
+import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
+
 import { CreateOrganisationDto } from './dto/create-organisation.dto.js';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto.js';
+import { OrganisationMembership } from './entities/organisation-membership.entity.js';
 import { Organisation } from './entities/organisation.entity.js';
+import { OrganisationRole } from './organisation-role.enum.js';
 
 function normalizeSlug(slug: string): string {
   return slug.trim().toLowerCase();
@@ -19,9 +26,17 @@ export class OrganisationsService {
   constructor(
     @InjectRepository(Organisation)
     private readonly organisationsRepository: Repository<Organisation>,
+    @InjectRepository(OrganisationMembership)
+    private readonly membershipRepository: Repository<OrganisationMembership>,
   ) {}
 
-  async create(dto: CreateOrganisationDto): Promise<Organisation> {
+  async create(
+    dto: CreateOrganisationDto,
+    creatorUserId: string,
+  ): Promise<Organisation> {
+    setCurrentUserId(creatorUserId);
+    setLastKnownUserIdForGuc(creatorUserId);
+
     const slug = normalizeSlug(dto.slug);
     const existing = await this.organisationsRepository.findOne({
       where: { slug },
@@ -32,11 +47,25 @@ export class OrganisationsService {
       );
     }
 
-    const organisation = this.organisationsRepository.create({
-      name: dto.name.trim(),
-      slug,
+    const id = randomUUID();
+    const name = dto.name.trim();
+
+    // INSERT without RETURNING: RLS SELECT policies block RETURNING until membership exists.
+    await this.organisationsRepository.manager.transaction(async (manager) => {
+      await manager.query(
+        `INSERT INTO organisations (id, name, slug) VALUES ($1, $2, $3)`,
+        [id, name, slug],
+      );
+
+      const membership = manager.getRepository(OrganisationMembership).create({
+        organisation: { id },
+        user: { id: creatorUserId },
+        role: OrganisationRole.OWNER,
+      });
+      await manager.getRepository(OrganisationMembership).save(membership);
     });
-    return this.organisationsRepository.save(organisation);
+
+    return this.findOne(id);
   }
 
   async findAll(): Promise<Organisation[]> {
