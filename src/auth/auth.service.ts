@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +8,8 @@ import { v4 as uuidV4 } from 'uuid';
 
 import { setCurrentUserId } from '../common/context/correlation-id-context.js';
 import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
+import { EmailService } from '../email/email.service.js';
+import { PasswordResetEmail } from '../email/payloads/password-reset.email.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { RedisService } from '../redis/redis.service.js';
@@ -20,6 +22,7 @@ import { SignupDto } from './dto/signup.dto.js';
 import { IJwtPayload } from './interfaces/jwt-payload.interface.js';
 
 const REFRESH_PREFIX = 'refresh:';
+const PASSWORD_RESET_PREFIX = 'password-reset:';
 
 /** Lower is higher privilege when choosing the active organisation. */
 const ROLE_PRIORITY: Record<OrganisationRole, number> = {
@@ -30,11 +33,14 @@ const ROLE_PRIORITY: Record<OrganisationRole, number> = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly redis: RedisService,
+    private readonly emailService: EmailService,
     @InjectRepository(OrganisationMembership)
     private readonly membershipRepo: Repository<OrganisationMembership>,
   ) {}
@@ -76,6 +82,58 @@ export class AuthService {
 
   async logout(refreshToken: string): Promise<void> {
     await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
+  }
+
+  /** Always completes; does not reveal whether the email exists. */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user?.isActive) {
+      return;
+    }
+
+    const token = uuidV4();
+    const ttl = this.config.get<number>(
+      'app.passwordReset.tokenTtlSeconds',
+      3600,
+    );
+    await this.redis.set(`${PASSWORD_RESET_PREFIX}${token}`, user.id, ttl);
+
+    try {
+      await this.emailService.sendEmail(
+        PasswordResetEmail.create(this.config, {
+          to: user.email,
+          firstName: user.firstName,
+          token,
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Password reset email failed for ${user.email}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
+  }
+
+  async resetPassword(
+    token: string,
+    password: string,
+  ): Promise<AuthResponseDto> {
+    const userId = await this.redis.get(`${PASSWORD_RESET_PREFIX}${token}`);
+    if (!userId) {
+      throw new UnauthorizedException(
+        'Invalid or expired password reset token',
+      );
+    }
+
+    await this.redis.del(`${PASSWORD_RESET_PREFIX}${token}`);
+    await this.usersService.updatePassword(userId, password);
+
+    const user = await this.usersService.findById(userId);
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    return this.generateTokens(user);
   }
 
   /** Issue JWT pair for an existing user (e.g. after OIDC callback). */

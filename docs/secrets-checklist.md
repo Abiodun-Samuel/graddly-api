@@ -19,6 +19,15 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Sentry environment | `SENTRY_ENVIRONMENT` | Set to `staging` or `production` for clean issue separation. |
 | Log shipping | `LOGGLY_TOKEN`, `LOGGLY_SUBDOMAIN` | Optional; omit in dev if unused. |
 
+## When transactional email (Resend) is enabled
+
+| Item | Variable | Notes |
+|------|-----------|--------|
+| Email provider | `EMAIL_PROVIDER` | Set to `resend` in deployed environments that send password reset mail. |
+| Resend API key | `RESEND_API_KEY` | From the [Resend dashboard](https://resend.com/api-keys). |
+| From address | `RESEND_FROM_EMAIL` | Must use a verified domain (e.g. `Graddly <noreply@yourdomain.com>`). |
+| Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (e.g. `/reset`; see [password-reset.md](./password-reset.md)). |
+
 ## When GOV.UK One Login (OIDC) is enabled
 
 | Item | Variable | Notes |

@@ -73,6 +73,17 @@ export const envSchema = z
     OIDC_PROVISIONING_MODE: z
       .enum(['auto_create', 'link_existing'])
       .default('auto_create'),
+
+    RESEND_API_KEY: z.string().optional().default(''),
+    RESEND_FROM_EMAIL: z.string().optional().default(''),
+    EMAIL_PROVIDER: z.enum(['resend', 'noop']).default('noop'),
+    PASSWORD_RESET_TOKEN_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(300)
+      .max(86_400)
+      .default(3600),
+    FRONTEND_BASE_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -103,6 +114,35 @@ export const envSchema = z
           'SWAGGER_PASSWORD must be set (min 12 characters) when NODE_ENV is production or staging.',
         path: ['SWAGGER_PASSWORD'],
       });
+    }
+
+    if (data.EMAIL_PROVIDER === 'resend' && deployed) {
+      if (!data.RESEND_API_KEY?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'RESEND_API_KEY must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['RESEND_API_KEY'],
+        });
+      }
+
+      if (!data.RESEND_FROM_EMAIL?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'RESEND_FROM_EMAIL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['RESEND_FROM_EMAIL'],
+        });
+      }
+
+      if (!data.FRONTEND_BASE_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'FRONTEND_BASE_URL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['FRONTEND_BASE_URL'],
+        });
+      }
     }
 
     if (data.OIDC_ENABLED && deployed) {

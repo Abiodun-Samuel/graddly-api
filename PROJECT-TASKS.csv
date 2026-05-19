@@ -15,7 +15,7 @@ phase_order,phase,task_id,task,status,timeline,story_points,assignee,depends_on,
 4,D,OIDC-001,Passport OIDC strategy + One Login config placeholders,Done,Phase D,5,TBD,Phase B,
 4,D,OIDC-002,OAuth callback routes + state/nonce + token exchange,Done,Phase D,5,TBD,OIDC-001,
 4,D,OIDC-003,Link One Login to user by email + provisioning rules,Done,Phase D,5,TBD,OIDC-002,
-4,D,PWD-001,Password reset tokens + email hook SendGrid stub,Not started,Phase D,5,TBD,Phase G optional ordering,"Often after SendGrid; stub OK"
+4,D,PWD-001,Password reset tokens + email hook Resend stub,Done,Phase D,5,TBD,Phase G optional ordering,"Resend + noop provider"
 4,D,PWD-002,Email verification for local sign-up,Not started,Phase D,3,TBD,,
 4,D,TOK-001,Refresh rotation hardening + logout-all + TTL alignment,Not started,Phase D,3,TBD,,
 5,E,INV-001,Invitation entity + migration,Not started,Phase E,3,TBD,Phase D,

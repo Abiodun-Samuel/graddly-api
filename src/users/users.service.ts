@@ -95,4 +95,12 @@ export class UsersService {
       { isEmailVerified: true },
     );
   }
+
+  async updatePassword(userId: string, plainPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+    await this.usersRepository.update(
+      { id: userId },
+      { password: hashedPassword },
+    );
+  }
 }

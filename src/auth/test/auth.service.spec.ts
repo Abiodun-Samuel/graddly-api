@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import { EmailService } from '../../email/email.service.js';
 import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../../organisations/organisation-role.enum.js';
 import { RedisService } from '../../redis/redis.service.js';
@@ -38,6 +39,7 @@ const mockUsersService = {
   create: jest.fn(),
   findById: jest.fn(),
   findByEmail: jest.fn(),
+  updatePassword: jest.fn(),
 };
 
 const mockJwtService = {
@@ -46,9 +48,10 @@ const mockJwtService = {
 
 const mockConfigService = {
   get: jest.fn((key: string, fallback?: string) => {
-    const values: Record<string, string> = {
+    const values: Record<string, string | number> = {
       ['app.jwt.accessExpiresIn']: '15m',
       ['app.jwt.refreshExpiresIn']: '7d',
+      ['app.passwordReset.tokenTtlSeconds']: 3600,
     };
     return values[key] ?? fallback;
   }),
@@ -58,6 +61,10 @@ const mockRedisService = {
   get: jest.fn(),
   set: jest.fn(),
   del: jest.fn(),
+};
+
+const mockEmailService = {
+  sendEmail: jest.fn(),
 };
 
 const mockMembershipRepo = {
@@ -76,6 +83,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: EmailService, useValue: mockEmailService },
         {
           provide: getRepositoryToken(OrganisationMembership),
           useValue: mockMembershipRepo,
@@ -191,6 +199,76 @@ describe('AuthService', () => {
 
       expect(mockRedisService.del).toHaveBeenCalledWith(
         `refresh:${refreshToken}`,
+      );
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('stores token and sends email for active user', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockResolvedValue(undefined);
+
+      await authService.requestPasswordReset(mockUser.email);
+
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringMatching(/^password-reset:/u),
+        mockUser.id,
+        3600,
+      );
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockUser.email,
+          template: 'password-reset',
+        }),
+      );
+    });
+
+    it('does nothing when user is unknown', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await authService.requestPasswordReset('unknown@example.com');
+
+      expect(mockRedisService.set).not.toHaveBeenCalled();
+      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when email send fails', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockRejectedValue(new Error('Resend down'));
+
+      await expect(
+        authService.requestPasswordReset(mockUser.email),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('resetPassword', () => {
+    const token = '550e8400-e29b-41d4-a716-446655440000';
+
+    it('updates password and returns tokens for valid token', async () => {
+      mockRedisService.get.mockResolvedValue(mockUser.id);
+      mockUsersService.findById.mockResolvedValue(mockUser);
+
+      const result = await authService.resetPassword(token, 'N3wP@ssw0rd!');
+
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        `password-reset:${token}`,
+      );
+      expect(mockUsersService.updatePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        'N3wP@ssw0rd!',
+      );
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+    });
+
+    it('throws for invalid token', async () => {
+      mockRedisService.get.mockResolvedValue(null);
+
+      await expect(
+        authService.resetPassword(token, 'N3wP@ssw0rd!'),
+      ).rejects.toThrow(
+        new UnauthorizedException('Invalid or expired password reset token'),
       );
     });
   });

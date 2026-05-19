@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { EmailModule } from '../email/email.module.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { UsersModule } from '../users/users.module.js';
 
@@ -18,6 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 @Module({
   imports: [
     UsersModule,
+    EmailModule,
     TypeOrmModule.forFeature([OrganisationMembership]),
     forwardRef(() => OidcModule.register()),
     PassportModule,

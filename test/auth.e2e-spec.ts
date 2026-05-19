@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import Redis from 'ioredis';
 import request from 'supertest';
 import { App } from 'supertest/types';
 
@@ -337,6 +338,116 @@ describe('AuthController (e2e)', () => {
         message: 'You are not a member of this organisation',
         path: '/api/v1/auth/active-organisation',
         error: 'Forbidden',
+      });
+    });
+  });
+
+  describe('Password reset', () => {
+    function createTestRedis(): Redis {
+      return new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD || undefined,
+      });
+    }
+
+    async function clearPasswordResetTokens(): Promise<void> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+      await redis.quit();
+    }
+
+    async function getLatestPasswordResetToken(): Promise<string | null> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length === 0) {
+        await redis.quit();
+        return null;
+      }
+      const key = keys[keys.length - 1];
+      const token = key.replace('password-reset:', '');
+      await redis.quit();
+      return token;
+    }
+
+    beforeEach(async () => {
+      await clearPasswordResetTokens();
+    });
+
+    it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: signupDto.email })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: `unknown-${Date.now()}@example.com` })
+        .expect(204);
+    });
+
+    it('resets password and issues tokens', async () => {
+      const email = `reset-flow-${Date.now()}@example.com`;
+      const oldPassword = 'OldP@ssw0rd!';
+      const newPassword = 'NewP@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Reset',
+          lastName: 'User',
+          email,
+          password: oldPassword,
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email })
+        .expect(204);
+
+      const token = await getLatestPasswordResetToken();
+      expect(token).toBeTruthy();
+
+      const resetRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token, password: newPassword })
+        .expect(200);
+
+      expect(resetRes.body.message).toBe('Password reset successfully');
+      expect(resetRes.body.data).toEqual({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: newPassword })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: oldPassword })
+        .expect(401);
+    });
+
+    it('POST /auth/reset-password returns 401 for invalid token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: '00000000-0000-4000-8000-000000000099',
+          password: 'N3wP@ssw0rd!',
+        })
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Invalid or expired password reset token',
+        path: '/api/v1/auth/reset-password',
+        error: 'Unauthorized',
       });
     });
   });

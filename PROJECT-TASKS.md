@@ -56,7 +56,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 | Passport **OIDC** strategy (provider-agnostic) + config placeholders for One Login | Done | Phase D | 5 | TBD |
 | OAuth callback routes, state/nonce, token exchange | Done | Phase D | 5 | TBD |
 | Link One Login identity to existing user by verified email + first-time provisioning rules | Done | Phase D | 5 | TBD |
-| Local email/password: keep; add **password reset** tokens + email template hook (SendGrid stub) | Not started | Phase D | 5 | TBD |
+| Local email/password: keep; add **password reset** tokens + email template hook (Resend stub) | Done | Phase D | 5 | TBD |
 | **Email verification** token flow for local sign-up | Not started | Phase D | 3 | TBD |
 | Refresh token rotation hardening: reuse detection, logout-all, align TTLs with doc (15m access / refresh policy) | Not started | Phase D | 3 | TBD |
 

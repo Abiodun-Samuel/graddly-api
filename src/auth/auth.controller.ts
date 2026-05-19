@@ -41,8 +41,10 @@ import {
   ApiActiveOrganisationResponseDto,
   ActiveOrganisationContextDto,
 } from './dto/active-organisation-context.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
@@ -109,6 +111,60 @@ export class AuthController {
   })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ResponseMessage('If an account exists, a password reset email has been sent')
+  @ApiOperation({
+    summary: 'Request a password reset email',
+    description:
+      'Sends a password reset link when an active account exists for the email. Always returns 204 to avoid email enumeration. Rate limited to 5 requests per minute.',
+  })
+  @ApiNoContentResponse({
+    description:
+      'Request accepted (no indication whether the email is registered)',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Password reset successfully')
+  @ApiOperation({
+    summary: 'Reset password with a token',
+    description:
+      'Sets a new password using the token from the reset email and returns a new JWT pair. Rate limited to 5 requests per minute.',
+  })
+  @ApiOkResponse({
+    description: 'Password updated and tokens issued',
+    type: ApiAuthResponseDto,
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or expired reset token, or account deactivated',
+    type: ErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
   }
 
   @Post('refresh')

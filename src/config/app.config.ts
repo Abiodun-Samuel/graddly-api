@@ -57,5 +57,19 @@ export default registerAs('app', () => {
       successRedirectUri: e.OIDC_SUCCESS_REDIRECT_URI,
       provisioningMode: e.OIDC_PROVISIONING_MODE,
     },
+    email: {
+      provider: e.EMAIL_PROVIDER,
+      resendApiKey: e.RESEND_API_KEY,
+      from: e.RESEND_FROM_EMAIL,
+      appName: 'Graddly',
+      supportUrl: process.env.EMAIL_SUPPORT_URL?.trim() || undefined,
+      privacyUrl: process.env.EMAIL_PRIVACY_URL?.trim() || undefined,
+    },
+    frontend: {
+      baseUrl: e.FRONTEND_BASE_URL,
+    },
+    passwordReset: {
+      tokenTtlSeconds: e.PASSWORD_RESET_TOKEN_TTL_SECONDS,
+    },
   };
 });
