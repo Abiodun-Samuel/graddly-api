@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -19,7 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
   imports: [
     UsersModule,
     TypeOrmModule.forFeature([OrganisationMembership]),
-    OidcModule.register(),
+    forwardRef(() => OidcModule.register()),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -37,6 +37,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     RolesGuard,
   ],
   exports: [
+    AuthService,
     PassportModule,
     JwtModule,
     JwtStrategy,

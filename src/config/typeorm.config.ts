@@ -12,6 +12,6 @@ export default registerAs('database', () => {
     username: e.DB_USERNAME,
     password: e.DB_PASSWORD,
     database: e.DB_NAME,
-    logging: e.NODE_ENV !== 'production',
+    logging: e.NODE_ENV === 'development',
   };
 });

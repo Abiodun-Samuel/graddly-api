@@ -52,6 +52,22 @@ describe('parseEnv', () => {
     expect(env.OIDC_CLIENT_ID).toBe('test-client');
   });
 
+  it('rejects production with OIDC enabled but no session secret', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        JWT_SECRET: 'x'.repeat(32),
+        SWAGGER_PASSWORD: 'strong-pass-12',
+        OIDC_ENABLED: 'true',
+        OIDC_ISSUER: 'https://oidc.integration.account.gov.uk',
+        OIDC_CLIENT_ID: 'test-client',
+        OIDC_CLIENT_SECRET: 'test-secret',
+        OIDC_REDIRECT_URI: 'http://localhost:3000/api/v1/auth/oidc/callback',
+        OIDC_SESSION_SECRET: 'short',
+      }),
+    ).toThrow(/OIDC_SESSION_SECRET/);
+  });
+
   it('rejects production with OIDC enabled but no client secret', () => {
     expect(() =>
       parseEnv({

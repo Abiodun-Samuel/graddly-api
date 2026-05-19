@@ -16,6 +16,11 @@ export class RedisService implements OnModuleDestroy {
     });
   }
 
+  /** Native client for connect-redis and other libraries that expect ioredis. */
+  getClient(): Redis {
+    return this.client;
+  }
+
   get(key: string): Promise<string | null> {
     return this.client.get(key);
   }

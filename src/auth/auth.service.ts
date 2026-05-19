@@ -78,6 +78,11 @@ export class AuthService {
     await this.redis.del(`${REFRESH_PREFIX}${refreshToken}`);
   }
 
+  /** Issue JWT pair for an existing user (e.g. after OIDC callback). */
+  async issueTokensForUser(user: User): Promise<AuthResponseDto> {
+    return this.generateTokens(user);
+  }
+
   /**
    * Active organisation: lowest role priority wins (OWNER > ADMIN > MEMBER),
    * then earliest membership `createdAt` as tiebreaker.

@@ -49,6 +49,12 @@ export default registerAs('app', () => {
       scopes: e.OIDC_SCOPES.split(/\s+/).filter(Boolean),
       uiLocales: e.OIDC_UI_LOCALES,
       vtr: parseOidcVtr(e.OIDC_VTR),
+      sessionSecret:
+        e.OIDC_SESSION_SECRET?.trim() ||
+        e.JWT_SECRET ||
+        'change-me-in-production',
+      sessionTtlSeconds: e.OIDC_SESSION_TTL_SECONDS,
+      successRedirectUri: e.OIDC_SUCCESS_REDIRECT_URI,
     },
   };
 });

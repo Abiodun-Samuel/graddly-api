@@ -1,3 +1,4 @@
+import { randomNonce } from 'openid-client';
 import {
   Strategy,
   type AuthenticateOptions,
@@ -34,6 +35,10 @@ export class GovUkOneLoginPassportStrategy extends Strategy {
 
     if (this.authorizationParams?.vtr?.length) {
       params.set('vtr', JSON.stringify(this.authorizationParams.vtr));
+    }
+
+    if (!params.has('nonce')) {
+      params.set('nonce', randomNonce());
     }
 
     return params;

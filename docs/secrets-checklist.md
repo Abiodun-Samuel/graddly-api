@@ -25,6 +25,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 |------|-----------|--------|
 | OIDC client | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | From One Login service configuration; required when `OIDC_ENABLED=true`. See [oidc-one-login.md](./oidc-one-login.md). |
 | Redirect URI | `OIDC_REDIRECT_URI` | Must match the URL registered in One Login for this environment. |
+| OIDC session signing | `OIDC_SESSION_SECRET` | Min **32** characters in production/staging when OIDC is enabled. |
 
 ## Operational hygiene
 

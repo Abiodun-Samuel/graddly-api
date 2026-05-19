@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,7 +42,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       setCurrentOrganisationId(payload.orgId);
     }
 
-    const user = await this.usersService.findById(payload.sub);
+    let user;
+    try {
+      user = await this.usersService.findById(payload.sub);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new UnauthorizedException('Unauthorized');
+      }
+      throw error;
+    }
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }

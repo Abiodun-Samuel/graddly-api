@@ -60,6 +60,15 @@ export const envSchema = z
     OIDC_SCOPES: z.string().min(1).default('openid email'),
     OIDC_UI_LOCALES: z.string().min(1).default('en'),
     OIDC_VTR: z.string().optional().default(''),
+
+    OIDC_SESSION_SECRET: z.string().optional().default(''),
+    OIDC_SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(86_400)
+      .default(600),
+    OIDC_SUCCESS_REDIRECT_URI: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -99,6 +108,19 @@ export const envSchema = z
           message:
             'OIDC_CLIENT_SECRET must be set when OIDC_ENABLED is true and NODE_ENV is production or staging.',
           path: ['OIDC_CLIENT_SECRET'],
+        });
+      }
+
+      const weakSessionSecret =
+        !data.OIDC_SESSION_SECRET?.trim() ||
+        data.OIDC_SESSION_SECRET.length < 32;
+
+      if (weakSessionSecret) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'OIDC_SESSION_SECRET must be set (min 32 characters) when OIDC_ENABLED is true and NODE_ENV is production or staging.',
+          path: ['OIDC_SESSION_SECRET'],
         });
       }
     }

@@ -1,5 +1,10 @@
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -10,13 +15,14 @@ import { WinstonModule } from 'nest-winston';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { OidcSessionMiddleware } from './auth/oidc/middleware/oidc-session.middleware.js';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { RlsBootstrapMiddleware } from './common/middleware/rls-bootstrap.middleware.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
-import { validateEnv } from './config/validate-env.js';
+import { getEnv, validateEnv } from './config/validate-env.js';
 import { HealthModule } from './health/health.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
@@ -77,6 +83,7 @@ import { UsersModule } from './users/users.module.js';
     AppService,
     { provide: APP_GUARD, useClass: CustomThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    ...(getEnv().OIDC_ENABLED ? [OidcSessionMiddleware] : []),
   ],
 })
 export class AppModule implements NestModule {
@@ -84,5 +91,13 @@ export class AppModule implements NestModule {
     consumer
       .apply(CorrelationIdMiddleware, RlsBootstrapMiddleware)
       .forRoutes('*');
+
+    if (getEnv().OIDC_ENABLED) {
+      consumer.apply(OidcSessionMiddleware).forRoutes({
+        path: 'auth/oidc',
+        method: RequestMethod.ALL,
+        version: '1',
+      });
+    }
   }
 }

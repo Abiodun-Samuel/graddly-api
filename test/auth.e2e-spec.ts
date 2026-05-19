@@ -30,7 +30,7 @@ describe('AuthController (e2e)', () => {
   const signupDto = {
     firstName: 'Jane',
     lastName: 'Doe',
-    email: 'jane@example.com',
+    email: `jane-e2e-${Date.now()}@example.com`,
     password: 'P@ssw0rd!',
   };
 
@@ -81,6 +81,17 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send(signupDto);
+      if (res.status !== 201 && res.status !== 409) {
+        throw new Error(
+          `Expected signup 201 or 409 before login tests, got ${res.status}`,
+        );
+      }
+    });
+
     it('should return 200 with { message, data: { accessToken, refreshToken } }', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
