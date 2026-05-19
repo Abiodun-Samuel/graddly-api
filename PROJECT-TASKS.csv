@@ -11,7 +11,7 @@ phase_order,phase,task_id,task,status,timeline,story_points,assignee,depends_on,
 2,B,RATE-001,Per-user rate limiting refinement,Not started,Phase B,3,TBD,,
 3,C,RLS-001,DB session SET current_org + TypeORM hooks,Not started,Phase C,8,TBD,ADR-001,"Skip if no RLS"
 3,C,RLS-002,RLS policies on existing PII tables + migration,Not started,Phase C,8,TBD,RLS-001,
-3,C,RLS-003,Integration tests cross-tenant isolation,Not started,Phase C,5,TBD,RLS-002,
+3,C,RLS-003,Integration tests cross-tenant isolation,Done,Phase C,5,TBD,RLS-002,
 4,D,OIDC-001,Passport OIDC strategy + One Login config placeholders,Not started,Phase D,5,TBD,Phase B,
 4,D,OIDC-002,OAuth callback routes + state/nonce + token exchange,Not started,Phase D,5,TBD,OIDC-001,
 4,D,OIDC-003,Link One Login to user by email + provisioning rules,Not started,Phase D,5,TBD,OIDC-002,

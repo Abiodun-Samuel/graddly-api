@@ -45,7 +45,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 |------|--------|----------|-----|----------|
 | DB role + `SET app.current_org` (or session var) pattern; TypeORM connection/query runner hooks | Not started | Phase C | 8 | TBD |
 | RLS policies for PII tables introduced so far (`users`, org tables) + migration | Not started | Phase C | 8 | TBD |
-| Integration tests: cannot read other org’s rows **[optional RLS]** | Not started | Phase C | 5 | TBD |
+| Integration tests: cannot read other org’s rows **[optional RLS]** | Done | Phase C | 5 | TBD |
 
 ---
 
