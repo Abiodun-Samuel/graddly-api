@@ -66,7 +66,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 
 | Task | Status | Timeline | SP | Assignee |
 |------|--------|----------|-----|----------|
-| `Invitation` entity (email, role, org, expiry) + migration | Not started | Phase E | 3 | TBD |
+| `Invitation` entity (email, role, org, expiry) + migration | Done | Phase E | 3 | TBD |
 | POST `/invitations` + resend + revoke + accept flow (token) | Not started | Phase E | 5 | TBD |
 
 ---

@@ -27,7 +27,7 @@
     "migration:run": "yarn build && yarn typeorm migration:run",
     "migration:show": "yarn build && yarn typeorm migration:show",
     "migration:revert": "yarn build && yarn typeorm migration:revert",
-    "migration:create": "yarn typeorm migration:create"
+    "migration:create": "node ./node_modules/typeorm/cli.js migration:create"
   },
   "dependencies": {
     "@nest-lab/throttler-storage-redis": "^1.2.0",

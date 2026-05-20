@@ -11,6 +11,10 @@ Postgres is used with **Row Level Security (RLS)** for tenant isolation. The API
 
 Do **not** put the app password in migrations or source control for production. Create the role in your host (Railway, RDS, etc.) and set secrets there.
 
+## RLS-protected tables
+
+With `TENANT_DB_CONTEXT_ENABLED=true`, the migrator applies Row Level Security on PII / tenant tables. As of the invitations migration, that set includes `users`, `organisations`, `organisation_memberships`, `user_oidc_identities`, and **`invitations`**. The `invitations` policies mirror other org-scoped data: members of the target organisation can read; inserts require the inviter (`invitedByUserId`) to match the current user unless RLS bootstrap is active; updates and deletes are constrained to the active organisation context (`app.current_org`).
+
 ## First-time local setup
 
 1. Create the database (if needed):
