@@ -3,18 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Redis from 'ioredis';
 import request from 'supertest';
 import { App } from 'supertest/types';
-
-function buildOrgPayload(name: string, ukprn: string) {
-  return {
-    name,
-    ukprn,
-    address: '1 Test Lane',
-    city: 'London',
-    postcode: 'SW1A 1AA',
-    country: 'United Kingdom',
-    orgEmail: `info@${ukprn}.co.uk`,
-  };
-}
+import { DataSource } from 'typeorm';
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
@@ -28,6 +17,18 @@ import {
   findEmailVerificationTokenForUserId,
 } from './helpers/email-verification-redis.js';
 import { getUserIdByEmail } from './helpers/rls-db.js';
+
+function buildOrgPayload(name: string, ukprn: string) {
+  return {
+    name,
+    ukprn,
+    address: '1 Test Lane',
+    city: 'London',
+    postcode: 'SW1A 1AA',
+    country: 'United Kingdom',
+    orgEmail: `info@${ukprn}.co.uk`,
+  };
+}
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -410,10 +411,14 @@ describe('AuthController (e2e)', () => {
     it('should return 401 when reusing an already-rotated refresh token', async () => {
       const staleToken = refreshToken;
 
-      await request(app.getHttpServer())
+      const rotated = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
         .send({ refreshToken: staleToken })
         .expect(200);
+
+      // Keep the freshly-rotated tokens so later describes still have a working session.
+      accessToken = rotated.body.data.accessToken as string;
+      refreshToken = rotated.body.data.refreshToken as string;
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
@@ -426,6 +431,14 @@ describe('AuthController (e2e)', () => {
         path: '/api/v1/auth/refresh',
         error: 'Unauthorized',
       });
+
+      // Reuse detection wipes the user's sessions; re-establish one for downstream describes.
+      const relogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: signupDto.email, password: signupDto.password })
+        .expect(200);
+      accessToken = relogin.body.data.accessToken as string;
+      refreshToken = relogin.body.data.refreshToken as string;
     });
   });
 
@@ -563,270 +576,318 @@ describe('AuthController (e2e)', () => {
     let employerOrgId: string;
 
     beforeAll(async () => {
-      const signup = await request(app.getHttpServer())
+      const portalEmail = `portal-tester-e2e-${Date.now()}@example.com`;
+
+      await request(app.getHttpServer())
         .post('/api/v1/auth/signup')
         .send({
           firstName: 'Portal',
           lastName: 'Tester',
-          email: 'portal-tester-e2e@example.com',
+          email: portalEmail,
           password: 'P@ssw0rd!',
-        });
-      portalToken = signup.body.data.accessToken as string;
+        })
+        .expect(201);
+
+      const verified = await verifyUserEmail(app, portalEmail);
+      portalToken = verified.accessToken;
       portalUserId = (
-        JSON.parse(Buffer.from(portalToken.split('.')[1], 'base64url').toString('utf8')) as { sub: string }
+        JSON.parse(
+          Buffer.from(portalToken.split('.')[1], 'base64url').toString('utf8'),
+        ) as { sub: string }
       ).sub;
-      describe('GET /auth/active-organisation', () => {
-        let ctxToken: string;
-        let ctxRefreshToken: string;
 
-        beforeAll(async () => {
-          const login = await request(app.getHttpServer())
-            .post('/api/v1/auth/login')
-            .send({ email: signupDto.email, password: signupDto.password })
-            .expect(200);
-          ctxToken = login.body.data.accessToken as string;
-          ctxRefreshToken = login.body.data.refreshToken as string;
-        });
+      const providerRes = await request(app.getHttpServer())
+        .post('/api/v1/organisations')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .send({
+          ...buildOrgPayload('Provider Org E2E', '10003001'),
+          portalType: 'provider',
+        })
+        .expect(201);
+      providerOrgId = providerRes.body.data.id as string;
 
-        // Create a provider org (portalType = 'provider')
-        const providerRes = await request(app.getHttpServer())
-          .post('/api/v1/organisations')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .send({ ...buildOrgPayload('Provider Org E2E', '10003001'), portalType: 'provider' })
-          .expect(201);
-        providerOrgId = providerRes.body.data.id as string;
+      const employerRes = await request(app.getHttpServer())
+        .post('/api/v1/organisations')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .send({
+          ...buildOrgPayload('Employer Org E2E', '10004001'),
+          portalType: 'employer',
+        })
+        .expect(201);
+      employerOrgId = employerRes.body.data.id as string;
+    });
 
-        // Create an employer org (portalType = 'employer')
-        const employerRes = await request(app.getHttpServer())
-          .post('/api/v1/organisations')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .send({ ...buildOrgPayload('Employer Org E2E', '10004001'), portalType: 'employer' })
-          .expect(201);
-        employerOrgId = employerRes.body.data.id as string;
-      });
+    it('activeOrganisation is null when user has no memberships', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
 
-      it('activeOrganisation is null when user has no memberships', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
+      expect(res.body.data.activeOrganisation).toBeNull();
+      expect(res.body.data).not.toHaveProperty('memberships');
+    });
 
-        expect(res.body.data.activeOrganisation).toBeNull();
-        expect(res.body.data).not.toHaveProperty('memberships');
-      });
+    it('returns null when no X-Portal-Type header is sent', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .expect(200);
 
-      it('returns null when no X-Portal-Type header is sent', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .expect(200);
+      expect(res.body.data.activeOrganisation).toBeNull();
+    });
 
-        expect(res.body.data.activeOrganisation).toBeNull();
-      });
+    it('scopes activeOrganisation to provider portal when X-Portal-Type: provider', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .set('X-Portal-Type', 'provider')
+        .expect(200);
 
-      it('scopes activeOrganisation to provider portal when X-Portal-Type: provider', async () => {
+      expect(res.body.data.activeOrganisation.organisation.id).toBe(providerOrgId);
+      expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
+      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('provider');
+    });
+
+    it('scopes activeOrganisation to employer portal when X-Portal-Type: employer', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .set('X-Portal-Type', 'employer')
+        .expect(200);
+
+      expect(res.body.data.activeOrganisation.organisation.id).toBe(employerOrgId);
+      expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
+      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('employer');
+    });
+
+    it('returns activeOrganisation: null when portal type has no matching membership', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .set('X-Portal-Type', 'apprentice')
+        .expect(200);
+
+      expect(res.body.data.activeOrganisation).toBeNull();
+    });
+
+    it('returns null when X-Portal-Type is invalid', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .set('X-Portal-Type', 'not-a-real-portal')
+        .expect(200);
+
+      expect(res.body.data.activeOrganisation).toBeNull();
+    });
+
+    it('activeOrganisation.organisation exposes only the allowed fields — no audit columns', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${portalToken}`)
+        .set('X-Portal-Type', 'provider')
+        .expect(200);
+
+      const org = res.body.data.activeOrganisation.organisation as Record<string, unknown>;
+      const allowedKeys = [
+        'id',
+        'name',
+        'slug',
+        'type',
+        'portalType',
+        'ukprn',
+        'address',
+        'city',
+        'postcode',
+        'country',
+        'orgEmail',
+        'orgPhone',
+        'website',
+      ].sort();
+      expect(Object.keys(org).sort()).toEqual(allowedKeys);
+    });
+
+    it('revoked membership is excluded from activeOrganisation resolution', async () => {
+      const dataSource = app.get(DataSource);
+
+      await dataSource.query(
+        `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
+        [portalUserId, providerOrgId],
+      );
+
+      try {
         const res = await request(app.getHttpServer())
           .get('/api/v1/auth/me')
           .set('Authorization', `Bearer ${portalToken}`)
           .set('X-Portal-Type', 'provider')
           .expect(200);
 
-        expect(res.body.data.activeOrganisation.organisation.id).toBe(providerOrgId);
-        expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-        expect(res.body.data.activeOrganisation.organisation.portalType).toBe('provider');
-      });
-
-      it('scopes activeOrganisation to employer portal when X-Portal-Type: employer', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .set('X-Portal-Type', 'employer')
-          .expect(200);
-
-        expect(res.body.data.activeOrganisation.organisation.id).toBe(employerOrgId);
-        expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-        expect(res.body.data.activeOrganisation.organisation.portalType).toBe('employer');
-      });
-
-      it('returns activeOrganisation: null when portal type has no matching membership', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .set('X-Portal-Type', 'apprentice')
-          .expect(200);
-
         expect(res.body.data.activeOrganisation).toBeNull();
-      });
-
-      it('returns null when X-Portal-Type is invalid', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .set('X-Portal-Type', 'not-a-real-portal')
-          .expect(200);
-
-        expect(res.body.data.activeOrganisation).toBeNull();
-      });
-
-      it('activeOrganisation.organisation exposes only the allowed fields — no audit columns', async () => {
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .set('X-Portal-Type', 'provider')
-          .expect(200);
-
-        const org = res.body.data.activeOrganisation.organisation as Record<string, unknown>;
-        const allowedKeys = [
-          'id', 'name', 'slug', 'type', 'portalType', 'ukprn',
-          'address', 'city', 'postcode', 'country',
-          'orgEmail', 'orgPhone', 'website',
-        ].sort();
-        expect(Object.keys(org).sort()).toEqual(allowedKeys);
-      });
-
-      it('revoked membership is excluded from activeOrganisation resolution', async () => {
-        const dataSource = app.get(DataSource);
-        // Revoke the provider membership
-        await dataSource.query(
-          `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
-          [portalUserId, providerOrgId],
-        );
-
-        const res = await request(app.getHttpServer())
-          .get('/api/v1/auth/me')
-          .set('Authorization', `Bearer ${portalToken}`)
-          .set('X-Portal-Type', 'provider')
-        const refreshed = await request(app.getHttpServer())
-          .post('/api/v1/auth/refresh')
-          .send({ refreshToken: ctxRefreshToken })
-          .expect(200);
-        const freshAccess = refreshed.body.data.accessToken as string;
-        ctxRefreshToken = refreshed.body.data.refreshToken as string;
-
-        const ok = await request(app.getHttpServer())
-          .get('/api/v1/auth/active-organisation')
-          .set('Authorization', `Bearer ${freshAccess}`)
-          .expect(200);
-
-        expect(res.body.data.activeOrganisation).toBeNull();
-
-        // Restore for subsequent tests
+      } finally {
         await dataSource.query(
           `UPDATE organisation_memberships SET status = 'active' WHERE "userId" = $1 AND "organisationId" = $2`,
           [portalUserId, providerOrgId],
         );
-      });
+      }
+    });
+  });
+
+  describe('GET /auth/active-organisation', () => {
+    let ctxAccessToken: string;
+    let ctxRefreshToken: string;
+
+    beforeAll(async () => {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: signupDto.email, password: signupDto.password })
+        .expect(200);
+      ctxAccessToken = login.body.data.accessToken as string;
+      ctxRefreshToken = login.body.data.refreshToken as string;
     });
 
-    describe('Password reset', () => {
-      function createTestRedis(): Redis {
-        return new Redis({
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379', 10),
-          password: process.env.REDIS_PASSWORD || undefined,
-        });
-      }
+    it('returns 200 after refreshing the access token', async () => {
+      const refreshed = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: ctxRefreshToken })
+        .expect(200);
 
-      async function clearPasswordResetTokens(): Promise<void> {
-        const redis = createTestRedis();
-        const keys = await redis.keys('password-reset:*');
-        if (keys.length > 0) {
-          await redis.del(...keys);
-        }
-        await redis.quit();
-      }
+      const freshAccess = refreshed.body.data.accessToken as string;
+      ctxRefreshToken = refreshed.body.data.refreshToken as string;
 
-      async function getLatestPasswordResetToken(): Promise<string | null> {
-        const redis = createTestRedis();
-        const keys = await redis.keys('password-reset:*');
-        if (keys.length === 0) {
-          await redis.quit();
-          return null;
-        }
-        const key = keys[keys.length - 1];
-        const token = key.replace('password-reset:', '');
-        await redis.quit();
-        return token;
-      }
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${freshAccess}`)
+        .expect(200);
+    });
 
-      beforeEach(async () => {
-        await clearPasswordResetTokens();
-      });
+    it('returns 200 with the current access token', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${ctxAccessToken}`)
+        .expect(200);
+    });
 
-      it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/forgot-password')
-          .send({ email: signupDto.email })
-          .expect(204);
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .expect(401);
 
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/forgot-password')
-          .send({ email: `unknown-${Date.now()}@example.com` })
-          .expect(204);
-      });
-
-      it('resets password and issues tokens', async () => {
-        const email = `reset-flow-${Date.now()}@example.com`;
-        const oldPassword = 'OldP@ssw0rd!';
-        const newPassword = 'NewP@ssw0rd!';
-
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/signup')
-          .send({
-            firstName: 'Reset',
-            lastName: 'User',
-            email,
-            password: oldPassword,
-          })
-          .expect(201);
-
-        await verifyUserEmail(app, email);
-
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/forgot-password')
-          .send({ email })
-          .expect(204);
-
-        const token = await getLatestPasswordResetToken();
-        expect(token).toBeTruthy();
-
-        const resetRes = await request(app.getHttpServer())
-          .post('/api/v1/auth/reset-password')
-          .send({ token, password: newPassword })
-          .expect(200);
-
-        expect(resetRes.body.message).toBe('Password reset successfully');
-        expect(resetRes.body.data).toEqual({
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        });
-
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/login')
-          .send({ email, password: newPassword })
-          .expect(200);
-
-        await request(app.getHttpServer())
-          .post('/api/v1/auth/login')
-          .send({ email, password: oldPassword })
-          .expect(401);
-      });
-
-      it('POST /auth/reset-password returns 401 for invalid token', async () => {
-        const res = await request(app.getHttpServer())
-          .post('/api/v1/auth/reset-password')
-          .send({
-            token: '00000000-0000-4000-8000-000000000099',
-            password: 'N3wP@ssw0rd!',
-          })
-          .expect(401);
-
-        expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
-          statusCode: 401,
-          message: 'Invalid or expired password reset token',
-          path: '/api/v1/auth/reset-password',
-          error: 'Unauthorized',
-        });
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/active-organisation',
       });
     });
   });
+
+  describe('Password reset', () => {
+    function createTestRedis(): Redis {
+      return new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD || undefined,
+      });
+    }
+
+    async function clearPasswordResetTokens(): Promise<void> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+      await redis.quit();
+    }
+
+    async function getLatestPasswordResetToken(): Promise<string | null> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length === 0) {
+        await redis.quit();
+        return null;
+      }
+      const key = keys[keys.length - 1];
+      const token = key.replace('password-reset:', '');
+      await redis.quit();
+      return token;
+    }
+
+    beforeEach(async () => {
+      await clearPasswordResetTokens();
+    });
+
+    it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: signupDto.email })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: `unknown-${Date.now()}@example.com` })
+        .expect(204);
+    });
+
+    it('resets password and issues tokens', async () => {
+      const email = `reset-flow-${Date.now()}@example.com`;
+      const oldPassword = 'OldP@ssw0rd!';
+      const newPassword = 'NewP@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Reset',
+          lastName: 'User',
+          email,
+          password: oldPassword,
+        })
+        .expect(201);
+
+      await verifyUserEmail(app, email);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email })
+        .expect(204);
+
+      const token = await getLatestPasswordResetToken();
+      expect(token).toBeTruthy();
+
+      const resetRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token, password: newPassword })
+        .expect(200);
+
+      expect(resetRes.body.message).toBe('Password reset successfully');
+      expect(resetRes.body.data).toEqual({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: newPassword })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: oldPassword })
+        .expect(401);
+    });
+
+    it('POST /auth/reset-password returns 401 for invalid token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: '00000000-0000-4000-8000-000000000099',
+          password: 'N3wP@ssw0rd!',
+        })
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Invalid or expired password reset token',
+        path: '/api/v1/auth/reset-password',
+        error: 'Unauthorized',
+      });
+    });
+  });
+});
