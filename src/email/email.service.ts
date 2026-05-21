@@ -15,7 +15,7 @@ export class EmailService {
   constructor(
     @Inject(EMAIL_SENDER) private readonly sender: IEmailSender,
     private readonly templateRenderer: EmailTemplateRendererService,
-  ) {}
+  ) { }
 
   async sendEmail(payload: BaseEmailPayload): Promise<void> {
     const { subject, html, text } = payload.build(this.templateRenderer);

@@ -95,7 +95,10 @@ export const envSchema = z
       .min(300)
       .max(172_800)
       .default(86_400),
-    FRONTEND_BASE_URL: z.string().url().optional(),
+    FRONTEND_BASE_EMPLOYER_URL: z.string().url().optional(),
+    FRONTEND_BASE_PROVIDER_URL: z.string().url().optional(),
+    FRONTEND_BASE_APPRENTICE_URL: z.string().url().optional(),
+    FRONTEND_BASE_FLOW_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -147,14 +150,6 @@ export const envSchema = z
         });
       }
 
-      if (!data.FRONTEND_BASE_URL) {
-        ctx.addIssue({
-          code: 'custom',
-          message:
-            'FRONTEND_BASE_URL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
-          path: ['FRONTEND_BASE_URL'],
-        });
-      }
     }
 
     if (data.OIDC_ENABLED && deployed) {

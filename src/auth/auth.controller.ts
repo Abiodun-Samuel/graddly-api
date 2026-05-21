@@ -54,10 +54,11 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 import type { AuthenticatedUser } from './interfaces/authenticated-user.interface.js';
 
-/** Safely coerce the raw header value to a known PortalType, or undefined. */
+/** Safely coerce the raw header value to a known PortalType, or undefined.
+ *  Handles comma-joined duplicates (e.g. "provider, provider") by taking the first token. */
 function parsePortalType(raw: string | undefined): PortalType | undefined {
   if (!raw) return undefined;
-  const lower = raw.toLowerCase();
+  const lower = raw.split(',')[0].trim().toLowerCase();
   return (Object.values(PortalType) as string[]).includes(lower)
     ? (lower as PortalType)
     : undefined;
@@ -83,6 +84,13 @@ export class AuthController {
   @ResponseMessage(
     'Account created. Please check your email to verify your account.',
   )
+  @ApiHeader({
+    name: 'X-Portal-Type',
+    description:
+      'Portal the user is registering from. Determines which frontend URL is embedded in the verification email.',
+    required: false,
+    schema: { type: 'string', enum: Object.values(PortalType) },
+  })
   @ApiOperation({
     summary: 'Register a new user',
     description:
@@ -104,8 +112,11 @@ export class AuthController {
     description: 'Too many requests',
     type: TooManyRequestsResponseDto as never,
   })
-  signup(@Body() dto: SignupDto) {
-    return this.authService.signup(dto);
+  signup(
+    @Body() dto: SignupDto,
+    @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
+  ) {
+    return this.authService.signup(dto, parsePortalType(rawPortalType));
   }
 
   @Post('login')
@@ -142,6 +153,13 @@ export class AuthController {
   @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ResponseMessage('If an account exists, a password reset email has been sent')
+  @ApiHeader({
+    name: 'X-Portal-Type',
+    description:
+      'Portal the user is resetting from. Determines which frontend URL is embedded in the reset email.',
+    required: false,
+    schema: { type: 'string', enum: Object.values(PortalType) },
+  })
   @ApiOperation({
     summary: 'Request a password reset email',
     description:
@@ -159,8 +177,15 @@ export class AuthController {
     description: 'Too many requests',
     type: TooManyRequestsResponseDto as never,
   })
-  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
-    await this.authService.requestPasswordReset(dto.email);
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
+  ): Promise<void> {
+
+    await this.authService.requestPasswordReset(
+      dto.email,
+      parsePortalType(rawPortalType),
+    );
   }
 
   @Post('reset-password')
@@ -228,6 +253,13 @@ export class AuthController {
   @ResponseMessage(
     'If an account exists and is unverified, a verification email has been sent',
   )
+  @ApiHeader({
+    name: 'X-Portal-Type',
+    description:
+      'Portal the user is verifying from. Determines which frontend URL is embedded in the verification email.',
+    required: false,
+    schema: { type: 'string', enum: Object.values(PortalType) },
+  })
   @ApiOperation({
     summary: 'Resend email verification',
     description:
@@ -245,8 +277,14 @@ export class AuthController {
     description: 'Too many requests',
     type: TooManyRequestsResponseDto as never,
   })
-  async resendVerification(@Body() dto: ForgotPasswordDto): Promise<void> {
-    await this.authService.resendVerification(dto.email);
+  async resendVerification(
+    @Body() dto: ForgotPasswordDto,
+    @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
+  ): Promise<void> {
+    await this.authService.resendVerification(
+      dto.email,
+      parsePortalType(rawPortalType),
+    );
   }
 
   @Post('refresh')

@@ -78,7 +78,12 @@ export default registerAs('app', () => {
       privacyUrl: process.env.EMAIL_PRIVACY_URL?.trim() || undefined,
     },
     frontend: {
-      baseUrl: e.FRONTEND_BASE_URL,
+      portalUrls: {
+        employer: e.FRONTEND_BASE_EMPLOYER_URL,
+        provider: e.FRONTEND_BASE_PROVIDER_URL,
+        apprentice: e.FRONTEND_BASE_APPRENTICE_URL,
+        flow: e.FRONTEND_BASE_FLOW_URL,
+      },
     },
     passwordReset: {
       tokenTtlSeconds: e.PASSWORD_RESET_TOKEN_TTL_SECONDS,

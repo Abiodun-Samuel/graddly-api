@@ -74,9 +74,9 @@ export class AuthService {
     private readonly membershipRepo: Repository<OrganisationMembership>,
   ) { }
 
-  async signup(dto: SignupDto): Promise<void> {
+  async signup(dto: SignupDto, portalType?: PortalType): Promise<void> {
     const user = await this.usersService.create(dto);
-    await this.sendVerificationEmail(user);
+    await this.sendVerificationEmail(user, portalType);
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -127,7 +127,10 @@ export class AuthService {
   }
 
   /** Always completes; does not reveal whether the email exists. */
-  async requestPasswordReset(email: string): Promise<void> {
+  async requestPasswordReset(
+    email: string,
+    portalType?: PortalType,
+  ): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user?.isActive) {
       return;
@@ -146,6 +149,7 @@ export class AuthService {
           to: user.email,
           firstName: user.firstName,
           token,
+          portalType,
         }),
       );
     } catch (err) {
@@ -199,13 +203,16 @@ export class AuthService {
   }
 
   /** Always completes; does not reveal whether the email exists. */
-  async resendVerification(email: string): Promise<void> {
+  async resendVerification(
+    email: string,
+    portalType?: PortalType,
+  ): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user?.isActive || user.isEmailVerified) {
       return;
     }
 
-    await this.sendVerificationEmail(user);
+    await this.sendVerificationEmail(user, portalType);
   }
 
   /** Issue JWT pair for an existing user (e.g. after OIDC callback). */
@@ -277,7 +284,10 @@ export class AuthService {
     };
   }
 
-  private async sendVerificationEmail(user: User): Promise<void> {
+  private async sendVerificationEmail(
+    user: User,
+    portalType?: PortalType,
+  ): Promise<void> {
     if (user.isEmailVerified) {
       return;
     }
@@ -295,6 +305,7 @@ export class AuthService {
           to: user.email,
           firstName: user.firstName,
           token,
+          portalType,
         }),
       );
     } catch (err) {

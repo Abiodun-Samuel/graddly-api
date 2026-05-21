@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { PortalType } from '../organisations/portal-type.enum.js';
 import { EmailLayoutContextService } from './email-layout-context.service.js';
 import { EmailTemplateRendererService } from './email-template-renderer.service.js';
 import { PasswordResetEmail } from './payloads/password-reset.email.js';
@@ -20,7 +21,10 @@ describe('EmailTemplateRendererService', () => {
             get: (key: string, fallback?: unknown) => {
               const values = new Map<string, unknown>([
                 ['app.email.appName', 'Graddly'],
-                ['app.frontend.baseUrl', 'http://localhost:3001'],
+                [
+                  'app.frontend.portalUrls',
+                  { employer: 'http://localhost:3001' },
+                ],
                 ['app.passwordReset.tokenTtlSeconds', 3600],
               ]);
               return values.get(key) ?? fallback;
@@ -40,6 +44,7 @@ describe('EmailTemplateRendererService', () => {
       to: 'user@example.com',
       firstName: 'Jane',
       token: '550e8400-e29b-41d4-a716-446655440000',
+      portalType: PortalType.EMPLOYER,
     });
 
     const { subject, html, text } = payload.build(renderer);
