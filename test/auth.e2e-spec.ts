@@ -556,7 +556,6 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-<<<<<<< HEAD
   describe('GET /auth/me — activeOrganisation and portal type scoping', () => {
     let portalToken: string;
     let portalUserId: string;
@@ -576,263 +575,258 @@ describe('AuthController (e2e)', () => {
       portalUserId = (
         JSON.parse(Buffer.from(portalToken.split('.')[1], 'base64url').toString('utf8')) as { sub: string }
       ).sub;
-=======
-  describe('GET /auth/active-organisation', () => {
-    let ctxToken: string;
-    let ctxRefreshToken: string;
+      describe('GET /auth/active-organisation', () => {
+        let ctxToken: string;
+        let ctxRefreshToken: string;
 
-    beforeAll(async () => {
-      const login = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email: signupDto.email, password: signupDto.password })
-        .expect(200);
-      ctxToken = login.body.data.accessToken as string;
-      ctxRefreshToken = login.body.data.refreshToken as string;
-    });
->>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
+        beforeAll(async () => {
+          const login = await request(app.getHttpServer())
+            .post('/api/v1/auth/login')
+            .send({ email: signupDto.email, password: signupDto.password })
+            .expect(200);
+          ctxToken = login.body.data.accessToken as string;
+          ctxRefreshToken = login.body.data.refreshToken as string;
+        });
 
-      // Create a provider org (portalType = 'provider')
-      const providerRes = await request(app.getHttpServer())
-        .post('/api/v1/organisations')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .send({ ...buildOrgPayload('Provider Org E2E', '10003001'), portalType: 'provider' })
-        .expect(201);
-      providerOrgId = providerRes.body.data.id as string;
+        // Create a provider org (portalType = 'provider')
+        const providerRes = await request(app.getHttpServer())
+          .post('/api/v1/organisations')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .send({ ...buildOrgPayload('Provider Org E2E', '10003001'), portalType: 'provider' })
+          .expect(201);
+        providerOrgId = providerRes.body.data.id as string;
 
-      // Create an employer org (portalType = 'employer')
-      const employerRes = await request(app.getHttpServer())
-        .post('/api/v1/organisations')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .send({ ...buildOrgPayload('Employer Org E2E', '10004001'), portalType: 'employer' })
-        .expect(201);
-      employerOrgId = employerRes.body.data.id as string;
-    });
-
-<<<<<<< HEAD
-    it('activeOrganisation is null when user has no memberships', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation).toBeNull();
-      expect(res.body.data).not.toHaveProperty('memberships');
-    });
-
-    it('returns null when no X-Portal-Type header is sent', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation).toBeNull();
-    });
-
-    it('scopes activeOrganisation to provider portal when X-Portal-Type: provider', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'provider')
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation.organisation.id).toBe(providerOrgId);
-      expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('provider');
-    });
-
-    it('scopes activeOrganisation to employer portal when X-Portal-Type: employer', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'employer')
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation.organisation.id).toBe(employerOrgId);
-      expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('employer');
-    });
-
-    it('returns activeOrganisation: null when portal type has no matching membership', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'apprentice')
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation).toBeNull();
-    });
-
-    it('returns null when X-Portal-Type is invalid', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'not-a-real-portal')
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation).toBeNull();
-    });
-
-    it('activeOrganisation.organisation exposes only the allowed fields — no audit columns', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'provider')
-        .expect(200);
-
-      const org = res.body.data.activeOrganisation.organisation as Record<string, unknown>;
-      const allowedKeys = [
-        'id', 'name', 'slug', 'type', 'portalType', 'ukprn',
-        'address', 'city', 'postcode', 'country',
-        'orgEmail', 'orgPhone', 'website',
-      ].sort();
-      expect(Object.keys(org).sort()).toEqual(allowedKeys);
-    });
-
-    it('revoked membership is excluded from activeOrganisation resolution', async () => {
-      const dataSource = app.get(DataSource);
-      // Revoke the provider membership
-      await dataSource.query(
-        `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
-        [portalUserId, providerOrgId],
-      );
-
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${portalToken}`)
-        .set('X-Portal-Type', 'provider')
-=======
-      const refreshed = await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
-        .send({ refreshToken: ctxRefreshToken })
-        .expect(200);
-      const freshAccess = refreshed.body.data.accessToken as string;
-      ctxRefreshToken = refreshed.body.data.refreshToken as string;
-
-      const ok = await request(app.getHttpServer())
-        .get('/api/v1/auth/active-organisation')
-        .set('Authorization', `Bearer ${freshAccess}`)
->>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
-        .expect(200);
-
-      expect(res.body.data.activeOrganisation).toBeNull();
-
-      // Restore for subsequent tests
-      await dataSource.query(
-        `UPDATE organisation_memberships SET status = 'active' WHERE "userId" = $1 AND "organisationId" = $2`,
-        [portalUserId, providerOrgId],
-      );
-    });
-  });
-
-  describe('Password reset', () => {
-    function createTestRedis(): Redis {
-      return new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        password: process.env.REDIS_PASSWORD || undefined,
+        // Create an employer org (portalType = 'employer')
+        const employerRes = await request(app.getHttpServer())
+          .post('/api/v1/organisations')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .send({ ...buildOrgPayload('Employer Org E2E', '10004001'), portalType: 'employer' })
+          .expect(201);
+        employerOrgId = employerRes.body.data.id as string;
       });
-    }
 
-    async function clearPasswordResetTokens(): Promise<void> {
-      const redis = createTestRedis();
-      const keys = await redis.keys('password-reset:*');
-      if (keys.length > 0) {
-        await redis.del(...keys);
+      it('activeOrganisation is null when user has no memberships', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation).toBeNull();
+        expect(res.body.data).not.toHaveProperty('memberships');
+      });
+
+      it('returns null when no X-Portal-Type header is sent', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation).toBeNull();
+      });
+
+      it('scopes activeOrganisation to provider portal when X-Portal-Type: provider', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'provider')
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation.organisation.id).toBe(providerOrgId);
+        expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
+        expect(res.body.data.activeOrganisation.organisation.portalType).toBe('provider');
+      });
+
+      it('scopes activeOrganisation to employer portal when X-Portal-Type: employer', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'employer')
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation.organisation.id).toBe(employerOrgId);
+        expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
+        expect(res.body.data.activeOrganisation.organisation.portalType).toBe('employer');
+      });
+
+      it('returns activeOrganisation: null when portal type has no matching membership', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'apprentice')
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation).toBeNull();
+      });
+
+      it('returns null when X-Portal-Type is invalid', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'not-a-real-portal')
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation).toBeNull();
+      });
+
+      it('activeOrganisation.organisation exposes only the allowed fields — no audit columns', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'provider')
+          .expect(200);
+
+        const org = res.body.data.activeOrganisation.organisation as Record<string, unknown>;
+        const allowedKeys = [
+          'id', 'name', 'slug', 'type', 'portalType', 'ukprn',
+          'address', 'city', 'postcode', 'country',
+          'orgEmail', 'orgPhone', 'website',
+        ].sort();
+        expect(Object.keys(org).sort()).toEqual(allowedKeys);
+      });
+
+      it('revoked membership is excluded from activeOrganisation resolution', async () => {
+        const dataSource = app.get(DataSource);
+        // Revoke the provider membership
+        await dataSource.query(
+          `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
+          [portalUserId, providerOrgId],
+        );
+
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/auth/me')
+          .set('Authorization', `Bearer ${portalToken}`)
+          .set('X-Portal-Type', 'provider')
+        const refreshed = await request(app.getHttpServer())
+          .post('/api/v1/auth/refresh')
+          .send({ refreshToken: ctxRefreshToken })
+          .expect(200);
+        const freshAccess = refreshed.body.data.accessToken as string;
+        ctxRefreshToken = refreshed.body.data.refreshToken as string;
+
+        const ok = await request(app.getHttpServer())
+          .get('/api/v1/auth/active-organisation')
+          .set('Authorization', `Bearer ${freshAccess}`)
+          .expect(200);
+
+        expect(res.body.data.activeOrganisation).toBeNull();
+
+        // Restore for subsequent tests
+        await dataSource.query(
+          `UPDATE organisation_memberships SET status = 'active' WHERE "userId" = $1 AND "organisationId" = $2`,
+          [portalUserId, providerOrgId],
+        );
+      });
+    });
+
+    describe('Password reset', () => {
+      function createTestRedis(): Redis {
+        return new Redis({
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          password: process.env.REDIS_PASSWORD || undefined,
+        });
       }
-      await redis.quit();
-    }
 
-    async function getLatestPasswordResetToken(): Promise<string | null> {
-      const redis = createTestRedis();
-      const keys = await redis.keys('password-reset:*');
-      if (keys.length === 0) {
+      async function clearPasswordResetTokens(): Promise<void> {
+        const redis = createTestRedis();
+        const keys = await redis.keys('password-reset:*');
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
         await redis.quit();
-        return null;
       }
-      const key = keys[keys.length - 1];
-      const token = key.replace('password-reset:', '');
-      await redis.quit();
-      return token;
-    }
 
-    beforeEach(async () => {
-      await clearPasswordResetTokens();
-    });
+      async function getLatestPasswordResetToken(): Promise<string | null> {
+        const redis = createTestRedis();
+        const keys = await redis.keys('password-reset:*');
+        if (keys.length === 0) {
+          await redis.quit();
+          return null;
+        }
+        const key = keys[keys.length - 1];
+        const token = key.replace('password-reset:', '');
+        await redis.quit();
+        return token;
+      }
 
-    it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot-password')
-        .send({ email: signupDto.email })
-        .expect(204);
-
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot-password')
-        .send({ email: `unknown-${Date.now()}@example.com` })
-        .expect(204);
-    });
-
-    it('resets password and issues tokens', async () => {
-      const email = `reset-flow-${Date.now()}@example.com`;
-      const oldPassword = 'OldP@ssw0rd!';
-      const newPassword = 'NewP@ssw0rd!';
-
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/signup')
-        .send({
-          firstName: 'Reset',
-          lastName: 'User',
-          email,
-          password: oldPassword,
-        })
-        .expect(201);
-
-      await verifyUserEmail(app, email);
-
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot-password')
-        .send({ email })
-        .expect(204);
-
-      const token = await getLatestPasswordResetToken();
-      expect(token).toBeTruthy();
-
-      const resetRes = await request(app.getHttpServer())
-        .post('/api/v1/auth/reset-password')
-        .send({ token, password: newPassword })
-        .expect(200);
-
-      expect(resetRes.body.message).toBe('Password reset successfully');
-      expect(resetRes.body.data).toEqual({
-        accessToken: expect.any(String),
-        refreshToken: expect.any(String),
+      beforeEach(async () => {
+        await clearPasswordResetTokens();
       });
 
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email, password: newPassword })
-        .expect(200);
+      it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: signupDto.email })
+          .expect(204);
 
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email, password: oldPassword })
-        .expect(401);
-    });
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: `unknown-${Date.now()}@example.com` })
+          .expect(204);
+      });
 
-    it('POST /auth/reset-password returns 401 for invalid token', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/reset-password')
-        .send({
-          token: '00000000-0000-4000-8000-000000000099',
-          password: 'N3wP@ssw0rd!',
-        })
-        .expect(401);
+      it('resets password and issues tokens', async () => {
+        const email = `reset-flow-${Date.now()}@example.com`;
+        const oldPassword = 'OldP@ssw0rd!';
+        const newPassword = 'NewP@ssw0rd!';
 
-      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
-        statusCode: 401,
-        message: 'Invalid or expired password reset token',
-        path: '/api/v1/auth/reset-password',
-        error: 'Unauthorized',
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/signup')
+          .send({
+            firstName: 'Reset',
+            lastName: 'User',
+            email,
+            password: oldPassword,
+          })
+          .expect(201);
+
+        await verifyUserEmail(app, email);
+
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email })
+          .expect(204);
+
+        const token = await getLatestPasswordResetToken();
+        expect(token).toBeTruthy();
+
+        const resetRes = await request(app.getHttpServer())
+          .post('/api/v1/auth/reset-password')
+          .send({ token, password: newPassword })
+          .expect(200);
+
+        expect(resetRes.body.message).toBe('Password reset successfully');
+        expect(resetRes.body.data).toEqual({
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String),
+        });
+
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email, password: newPassword })
+          .expect(200);
+
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ email, password: oldPassword })
+          .expect(401);
+      });
+
+      it('POST /auth/reset-password returns 401 for invalid token', async () => {
+        const res = await request(app.getHttpServer())
+          .post('/api/v1/auth/reset-password')
+          .send({
+            token: '00000000-0000-4000-8000-000000000099',
+            password: 'N3wP@ssw0rd!',
+          })
+          .expect(401);
+
+        expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+          statusCode: 401,
+          message: 'Invalid or expired password reset token',
+          path: '/api/v1/auth/reset-password',
+          error: 'Unauthorized',
+        });
       });
     });
   });
-});

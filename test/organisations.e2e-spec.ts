@@ -69,16 +69,13 @@ describe('OrganisationsController (e2e)', () => {
         },
       });
 
-<<<<<<< HEAD
       accessToken = loginRes.body.data.accessToken as string;
       userId = (
         JSON.parse(
           Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8'),
         ) as { sub: string }
       ).sub;
-=======
       accessToken = verified.accessToken;
->>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
     });
   });
 

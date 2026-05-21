@@ -34,7 +34,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
 const PASSWORD_RESET_PREFIX = 'password-reset:';
 const EMAIL_VERIFY_PREFIX = 'email-verify:';
 
-/** Lower value = higher privilege — used for JWT generation (role-priority sort). */
+/** Lower is higher privilege when choosing the active organisation. */
 const ROLE_PRIORITY: Record<OrganisationRole, number> = {
   [OrganisationRole.OWNER]: 0,
   [OrganisationRole.ADMIN]: 1,
@@ -81,18 +81,24 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
-    if (!user.isActive)
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
+    }
 
     const passwordValid = await bcrypt.compare(dto.password, user.password);
-    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
-
-    void this.usersService.updateLastLoginAt(user.id).catch(() => undefined);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     if (!user.isEmailVerified) {
       throw new ForbiddenException('Email address not verified');
     }
+
+    void this.usersService.updateLastLoginAt(user.id).catch(() => undefined);
 
     return this.generateTokens(user);
   }
@@ -207,38 +213,10 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  private async sendVerificationEmail(user: User): Promise<void> {
-    if (user.isEmailVerified) {
-      return;
-    }
-
-    const token = uuidV4();
-    const ttl = this.config.get<number>(
-      'app.emailVerification.tokenTtlSeconds',
-      86_400,
-    );
-    await this.redis.set(`${EMAIL_VERIFY_PREFIX}${token}`, user.id, ttl);
-
-    try {
-      await this.emailService.sendEmail(
-        EmailVerificationEmail.create(this.config, {
-          to: user.email,
-          firstName: user.firstName,
-          token,
-        }),
-      );
-    } catch (err) {
-      this.logger.error(
-        `Email verification failed for ${user.email}`,
-        err instanceof Error ? err.stack : String(err),
-      );
-    }
-  }
-
   /**
    * Resolves the active organisation for a user scoped strictly to the given portalType.
    * Returns null when no active membership exists for that portal. Single round-trip, no N+1.
-   * getRawOne() is intentional — innerJoinAndSelect + select() leaves the relation unhydrated in TypeORM.
+   * getRawOne() is intentional: innerJoinAndSelect + select() leaves the relation unhydrated in TypeORM.
    */
   async resolveActiveOrganisationForUser(
     userId: string,
@@ -299,10 +277,38 @@ export class AuthService {
     };
   }
 
+  private async sendVerificationEmail(user: User): Promise<void> {
+    if (user.isEmailVerified) {
+      return;
+    }
+
+    const token = uuidV4();
+    const ttl = this.config.get<number>(
+      'app.emailVerification.tokenTtlSeconds',
+      86_400,
+    );
+    await this.redis.set(`${EMAIL_VERIFY_PREFIX}${token}`, user.id, ttl);
+
+    try {
+      await this.emailService.sendEmail(
+        EmailVerificationEmail.create(this.config, {
+          to: user.email,
+          firstName: user.firstName,
+          token,
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Email verification failed for ${user.email}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
+  }
+
   /**
-   * Active organisation: lowest role priority wins (OWNER > ADMIN > MEMBER),
-   * then earliest membership `createdAt` as tiebreaker.
-   * Used only for JWT generation — loads minimal data, no portal scoping.
+   * Active organisation: lowest role priority wins (OWNER, then ADMIN, then MEMBER),
+   * with earliest membership createdAt as tiebreaker.
+   * Used only for JWT generation; loads minimal data with no portal scoping.
    */
   private async resolveActiveMembershipForUser(
     userId: string,
@@ -312,16 +318,20 @@ export class AuthService {
       relations: ['organisation'],
     });
 
-    if (memberships.length === 0) return null;
+    if (memberships.length === 0) {
+      return null;
+    }
 
-    return (
-      [...memberships].sort((a, b) => {
-        const diff = ROLE_PRIORITY[a.role] - ROLE_PRIORITY[b.role];
-        return diff !== 0
-          ? diff
-          : a.createdAt.getTime() - b.createdAt.getTime();
-      })[0] ?? null
-    );
+    const sorted = [...memberships].sort((a, b) => {
+      const pa = ROLE_PRIORITY[a.role];
+      const pb = ROLE_PRIORITY[b.role];
+      if (pa !== pb) {
+        return pa - pb;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    return sorted[0] ?? null;
   }
 
   private async generateTokens(
@@ -336,8 +346,11 @@ export class AuthService {
     const jwtPayload: IJwtPayload = {
       sub: user.id,
       email: user.email,
-      ...(membership
-        ? { orgId: membership.organisation.id, roles: [membership.role] }
+      ...(membership?.organisation
+        ? {
+          orgId: membership.organisation.id,
+          roles: [membership.role],
+        }
         : {}),
     };
 
@@ -353,12 +366,5 @@ export class AuthService {
       existingRefreshToken ?? (await this.refreshTokenService.issue(user.id));
 
     return { accessToken, refreshToken };
-  }
-
-  private parseToSeconds(duration: string): number {
-    const units: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
-    const match = /^(\d+)([smhd])$/.exec(duration);
-    if (!match) return 604800;
-    return parseInt(match[1], 10) * (units[match[2]] ?? 1);
   }
 }

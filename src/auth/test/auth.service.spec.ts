@@ -50,12 +50,9 @@ const mockUsersService = {
   create: jest.fn(),
   findById: jest.fn(),
   findByEmail: jest.fn(),
-<<<<<<< HEAD
   updateLastLoginAt: jest.fn().mockResolvedValue(undefined),
-=======
   updatePassword: jest.fn(),
   markEmailVerified: jest.fn(),
->>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 };
 
 const mockJwtService = {
