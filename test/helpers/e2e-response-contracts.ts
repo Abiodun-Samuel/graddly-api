@@ -24,15 +24,19 @@ export function expectSuccessEnvelope(body: unknown): asserts body is {
 
 /** Organisation JSON as returned by TypeORM serialization (dates as ISO strings). */
 export function expectOrganisationResource(data: unknown): void {
-  expect(data).toEqual({
-    id: expect.any(String),
-    name: expect.any(String),
-    slug: expect.any(String),
-    createdAt: expect.any(String),
-    updatedAt: expect.any(String),
-    isDeleted: expect.any(Boolean),
-    deletedAt: null,
-  });
+  // Use objectContaining so nullable contact fields (address, city, etc.) are
+  // allowed to be null on older orgs while still locking core structural fields.
+  expect(data).toEqual(
+    expect.objectContaining({
+      id: expect.any(String),
+      name: expect.any(String),
+      slug: expect.any(String),
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
+      isDeleted: expect.any(Boolean),
+      deletedAt: null,
+    }),
+  );
 }
 
 export interface IStandardHttpErrorExpectation {

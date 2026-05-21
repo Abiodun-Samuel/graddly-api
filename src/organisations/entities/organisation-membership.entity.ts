@@ -2,6 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 
 import { BaseEntity } from '../../common/entities/base.entity.js';
 import { User } from '../../users/entities/user.entity.js';
+import { MembershipStatus } from '../membership-status.enum.js';
 import { OrganisationRole } from '../organisation-role.enum.js';
 
 import { Organisation } from './organisation.entity.js';
@@ -32,4 +33,15 @@ export class OrganisationMembership extends BaseEntity {
     enumName: 'organisation_role',
   })
   role!: OrganisationRole;
+
+  @Column({
+    type: 'enum',
+    enum: MembershipStatus,
+    enumName: 'membership_status',
+    default: MembershipStatus.ACTIVE,
+  })
+  status!: MembershipStatus;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  joinedAt!: Date;
 }

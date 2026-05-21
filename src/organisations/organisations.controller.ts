@@ -25,7 +25,9 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
 import {
   ErrorResponseDto,
   ValidationErrorResponseDto,
@@ -73,8 +75,11 @@ export class OrganisationsController {
     description: 'Slug already in use',
     type: ErrorResponseDto,
   })
-  create(@Body() dto: CreateOrganisationDto) {
-    return this.organisationsService.create(dto);
+  create(
+    @Body() dto: CreateOrganisationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.organisationsService.create(dto, user.id);
   }
 
   @Get()

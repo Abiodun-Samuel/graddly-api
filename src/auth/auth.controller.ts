@@ -2,17 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
+  Logger,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
   ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -24,9 +25,10 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
+import { PORTAL_TYPE_HEADER } from '../common/constants/organisation-headers.js';
 import {
   ApiAuthResponseDto,
-  ApiUserResponseDto,
+  ApiMeResponseDto,
 } from '../common/dto/api-response.dto.js';
 import {
   ErrorResponseDto,
@@ -34,25 +36,43 @@ import {
   ValidationErrorResponseDto,
 } from '../common/dto/error-response.dto.js';
 import { ResponseMessage } from '../common/interceptors/response-message.decorator.js';
+import { PortalType } from '../organisations/portal-type.enum.js';
+import { UpdateProfileDto } from '../users/dto/update-profile.dto.js';
+import { UsersService } from '../users/users.service.js';
 
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
-import {
-  ApiActiveOrganisationResponseDto,
-  ActiveOrganisationContextDto,
-} from './dto/active-organisation-context.dto.js';
+import { ActiveOrganisationMeDto } from './dto/active-organisation-context.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
-import { ActiveOrganisationGuard } from './guards/active-organisation.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 import type { AuthenticatedUser } from './interfaces/authenticated-user.interface.js';
 
+/** Safely coerce the raw header value to a known PortalType, or undefined. */
+function parsePortalType(raw: string | undefined): PortalType | undefined {
+  if (!raw) return undefined;
+  const lower = raw.toLowerCase();
+  return (Object.values(PortalType) as string[]).includes(lower)
+    ? (lower as PortalType)
+    : undefined;
+}
+
+type MeResult = Omit<
+  AuthenticatedUser,
+  'organisationId' | 'roles' | 'memberships' | 'password'
+> & { activeOrganisation: ActiveOrganisationMeDto | null };
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post('signup')
   @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
@@ -91,10 +111,7 @@ export class AuthController {
     description:
       'Authenticates a user with their email and password. Returns a new token pair. Fails if the credentials are invalid or the account is deactivated. Rate limited to 5 requests per minute.',
   })
-  @ApiOkResponse({
-    description: 'Login successful',
-    type: ApiAuthResponseDto,
-  })
+  @ApiOkResponse({ description: 'Login successful', type: ApiAuthResponseDto })
   @ApiUnprocessableEntityResponse({
     description: 'Validation failed',
     type: ValidationErrorResponseDto,
@@ -153,62 +170,111 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ResponseMessage('User profile retrieved')
+  @ApiHeader({
+    name: 'X-Portal-Type',
+    description:
+      "Required for a non-null activeOrganisation. Must be a valid portal type (employer | apprentice | flow | provider) whose value matches the user's membership. Missing or unrecognised values yield activeOrganisation: null.",
+    required: false,
+    schema: { type: 'string', enum: Object.values(PortalType) },
+  })
   @ApiOperation({
     summary: 'Get current user profile',
     description:
-      'Returns the profile of the currently authenticated user. The user is resolved from the JWT access token.',
+      "Returns the authenticated user's profile. activeOrganisation is populated only when X-Portal-Type is a valid enum value and the user holds an active membership in an organisation of that portal type.",
   })
   @ApiOkResponse({
-    description: 'Current user profile',
-    type: ApiUserResponseDto,
+    description: 'User profile with active organisation',
+    type: ApiMeResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid access token',
     type: ErrorResponseDto,
   })
-  me(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
-    return user;
+  async me(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
+  ): Promise<MeResult> {
+    const portalType = parsePortalType(rawPortalType);
+
+    let activeOrganisation: ActiveOrganisationMeDto | null = null;
+    if (portalType) {
+      try {
+        activeOrganisation =
+          await this.authService.resolveActiveOrganisationForUser(
+            user.id,
+            portalType,
+          );
+      } catch (err) {
+        this.logger.error('Failed to resolve active organisation for /me', err);
+      }
+    }
+
+    const {
+      organisationId: _organisationId,
+      roles: _roles,
+      memberships: _memberships,
+      password: _password,
+      ...publicUser
+    } = user;
+    return { ...publicUser, activeOrganisation };
   }
 
-  @Get('active-organisation')
-  @UseGuards(JwtAuthGuard, ActiveOrganisationGuard)
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Profile updated successfully')
   @ApiHeader({
-    name: 'X-Organisation-Id',
+    name: 'X-Portal-Type',
     description:
-      'Optional. Overrides the JWT default active organisation when you are a member.',
+      "Required for a non-null activeOrganisation. Must be a valid portal type matching the user's membership. Missing or unrecognised values yield activeOrganisation: null.",
     required: false,
-    schema: { format: 'uuid', type: 'string' },
+    schema: { type: 'string', enum: Object.values(PortalType) },
   })
-  @ResponseMessage('Active organisation resolved')
   @ApiOperation({
-    summary: 'Get resolved active organisation context',
+    summary: 'Update current user profile',
     description:
-      'Requires a bearer access token that includes organisation context (`orgId` in JWT) unless you supply `X-Organisation-Id` for a membership you belong to.',
+      "Partially updates the authenticated user's profile. Email and password changes require their own dedicated flows. Returns the full updated profile with activeOrganisation when X-Portal-Type is provided.",
   })
   @ApiOkResponse({
-    description: 'Current resolved organisation id and roles',
-    type: ApiActiveOrganisationResponseDto,
+    description: 'Updated user profile',
+    type: ApiMeResponseDto,
   })
-  @ApiBadRequestResponse({
-    description: 'Invalid X-Organisation-Id header',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({
-    description:
-      'No organisation context, not a member of requested org, or invalid membership',
-    type: ErrorResponseDto,
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid access token',
     type: ErrorResponseDto,
   })
-  activeOrganisation(
+  async updateMe(
     @CurrentUser() user: AuthenticatedUser,
-  ): ActiveOrganisationContextDto {
-    return {
-      organisationId: user.organisationId!,
-      roles: user.roles ?? [],
-    };
+    @Body() dto: UpdateProfileDto,
+    @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
+  ): Promise<MeResult> {
+    const portalType = parsePortalType(rawPortalType);
+
+    const [updatedUser, activeOrganisation] = await Promise.all([
+      this.usersService.updateProfile(user.id, dto),
+      portalType
+        ? this.authService
+            .resolveActiveOrganisationForUser(user.id, portalType)
+            .catch((err) => {
+              this.logger.error(
+                'Failed to resolve active organisation after profile update',
+                err,
+              );
+              return null;
+            })
+        : Promise.resolve(null),
+    ]);
+
+    const {
+      password: _password,
+      memberships: _memberships,
+      ...publicUser
+    } = updatedUser;
+    return { ...publicUser, activeOrganisation };
   }
 }

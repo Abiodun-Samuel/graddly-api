@@ -1,52 +1,73 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+import { ActiveOrganisationMeDto } from '../../auth/dto/active-organisation-context.dto.js';
+import { UserGender } from '../enums/user-gender.enum.js';
+
 export class UserResponseDto {
-  @ApiProperty({
-    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    description: 'Unique user identifier (UUID)',
-  })
+  @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ example: 'John', description: 'First name of the user' })
+  @ApiPropertyOptional({ example: 'Dr', nullable: true })
+  title!: string | null;
+
+  @ApiProperty({ example: 'Jane' })
   firstName!: string;
 
-  @ApiProperty({ example: 'Doe', description: 'Last name of the user' })
+  @ApiProperty({ example: 'Smith' })
   lastName!: string;
 
-  @ApiProperty({
-    example: 'john@example.com',
-    description: 'Email address (unique)',
-  })
+  @ApiProperty({ example: 'jane@example.com' })
   email!: string;
 
-  @ApiProperty({
-    example: false,
-    description: 'Whether the user has verified their email',
-  })
+  @ApiProperty({ example: false })
   isEmailVerified!: boolean;
 
-  @ApiProperty({
-    example: true,
-    description: 'Whether the account is active',
-  })
+  @ApiProperty({ example: true })
   isActive!: boolean;
 
-  @ApiPropertyOptional({
-    example: 'https://example.com/avatar.jpg',
-    description: 'URL to the user avatar image',
-    nullable: true,
-  })
+  @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg', nullable: true })
   avatarUrl!: string | null;
 
-  @ApiProperty({
-    example: '2026-04-07T10:00:00.000Z',
-    description: 'Account creation timestamp',
-  })
+  @ApiPropertyOptional({ example: '+44 7700 900123', nullable: true })
+  phone!: string | null;
+
+  @ApiPropertyOptional({ example: '1990-06-15', nullable: true })
+  dateOfBirth!: Date | null;
+
+  @ApiPropertyOptional({ enum: UserGender, nullable: true })
+  gender!: UserGender | null;
+
+  @ApiPropertyOptional({ example: 'Senior Training Manager', nullable: true })
+  jobTitle!: string | null;
+
+  @ApiPropertyOptional({ example: 'People & Development', nullable: true })
+  department!: string | null;
+
+  @ApiPropertyOptional({ example: 'Specialist in adult care workforce development.', nullable: true })
+  bio!: string | null;
+
+  @ApiProperty({ example: 'en-GB' })
+  locale!: string;
+
+  @ApiProperty({ example: 'Europe/London' })
+  timezone!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  lastLoginAt!: Date | null;
+
+  @ApiProperty()
   createdAt!: Date;
 
-  @ApiProperty({
-    example: '2026-04-07T10:00:00.000Z',
-    description: 'Last profile update timestamp',
-  })
+  @ApiProperty()
   updatedAt!: Date;
+}
+
+export class MeResponseDto extends UserResponseDto {
+  @ApiProperty({
+    description:
+      'Active organisation whose portalType matches X-Portal-Type header. Null when the header is absent, unrecognised, or no active membership exists for that portal.',
+    nullable: true,
+    type: () => ActiveOrganisationMeDto,
+  })
+  activeOrganisation!: ActiveOrganisationMeDto | null;
 }

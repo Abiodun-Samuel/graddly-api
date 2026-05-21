@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npx jest *)",
+      "Bash(del \"c:\\\\Users\\\\OLUYEMI\\\\Desktop\\\\Work Projects\\\\Gradlly\\\\graddly-api\\\\src\\\\organisations\\\\dto\\\\membership-summary.dto.ts\")",
+      "Bash(npx tsc *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d[k] for k in ['dependencies','devDependencies'] if k in d}, indent=2\\)\\)\")",
+      "Bash(npx eslint *)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('package.json'\\)\\); print\\(json.dumps\\(d.get\\('jest', {}\\), indent=2\\)\\)\")"
+    ]
+  }
+}

@@ -1,21 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ActiveOrganisationContextDto {
-  @ApiProperty({ format: 'uuid' })
-  organisationId!: string;
+import { MembershipStatus } from '../../organisations/membership-status.enum.js';
+import { OrganisationSummaryDto } from '../../organisations/dto/organisation-response.dto.js';
 
+export class ActiveOrganisationMeDto {
   @ApiProperty({
     type: [String],
     example: ['owner'],
-    description: 'Roles in the active organisation',
+    description: 'Roles held in the active organisation',
   })
   roles!: string[];
-}
 
-export class ApiActiveOrganisationResponseDto {
-  @ApiProperty({ example: 'Active organisation resolved' })
-  message!: string;
+  @ApiProperty({
+    enum: MembershipStatus,
+    example: MembershipStatus.ACTIVE,
+    description: 'Current membership status',
+  })
+  membershipStatus!: MembershipStatus;
 
-  @ApiProperty({ type: ActiveOrganisationContextDto })
-  data!: ActiveOrganisationContextDto;
+  @ApiProperty({ type: () => OrganisationSummaryDto })
+  organisation!: OrganisationSummaryDto;
 }

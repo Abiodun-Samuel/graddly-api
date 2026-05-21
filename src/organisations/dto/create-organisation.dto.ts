@@ -1,26 +1,69 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, Matches, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsUrl,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
-/** Lowercase slug: letters, numbers, single hyphens between segments (no leading/trailing hyphen). */
-const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+import { PortalType } from '../portal-type.enum.js';
 
 export class CreateOrganisationDto {
-  @ApiProperty({ example: 'Acme Trust', maxLength: 255 })
+  @ApiProperty({ example: 'Northstar Training Ltd', minLength: 2, maxLength: 200 })
   @IsNotEmpty()
-  @MaxLength(255)
+  @MinLength(2)
+  @MaxLength(200)
   name!: string;
 
   @ApiProperty({
-    example: 'acme-trust',
-    description:
-      'URL-safe unique identifier (lowercase letters, numbers, hyphens).',
-    maxLength: 100,
+    example: '10012345',
+    description: 'UK Provider Reference Number — exactly 8 digits',
   })
   @IsNotEmpty()
+  @Matches(/^\d{8}$/, { message: 'UKPRN must be exactly 8 digits' })
+  ukprn!: string;
+
+  @ApiProperty({ example: '123 Training Lane', maxLength: 200 })
+  @IsNotEmpty()
+  @MaxLength(200)
+  address!: string;
+
+  @ApiProperty({ example: 'London', maxLength: 100 })
+  @IsNotEmpty()
   @MaxLength(100)
-  @Matches(SLUG_REGEX, {
-    message:
-      'slug must contain only lowercase letters, numbers, and single hyphens between segments',
-  })
-  slug!: string;
+  city!: string;
+
+  @ApiProperty({ example: 'SW1A 1AA', maxLength: 10 })
+  @IsNotEmpty()
+  @MaxLength(10)
+  @Transform(({ value }: { value: string }) => value.toUpperCase())
+  postcode!: string;
+
+  @ApiProperty({ example: 'United Kingdom' })
+  @IsNotEmpty()
+  country!: string;
+
+  @ApiProperty({ example: 'info@northstar-training.co.uk' })
+  @IsEmail()
+  orgEmail!: string;
+
+  @ApiPropertyOptional({ example: '+44 20 7946 0958', maxLength: 20 })
+  @IsOptional()
+  @MaxLength(20)
+  orgPhone?: string;
+
+  @ApiPropertyOptional({ example: 'https://northstar-training.co.uk', maxLength: 500 })
+  @IsOptional()
+  @IsUrl({}, { message: 'Enter a valid URL (including https://)' })
+  website?: string;
+
+  @ApiPropertyOptional({ enum: PortalType, example: PortalType.PROVIDER })
+  @IsOptional()
+  @IsEnum(PortalType)
+  portalType?: PortalType;
 }

@@ -21,6 +21,7 @@ const { compare: mockCompare } = jest.requireMock<{
 
 const mockUser: User = {
   id: 'user-uuid-1',
+  title: null,
   firstName: 'John',
   lastName: 'Doe',
   email: 'john@example.com',
@@ -28,6 +29,15 @@ const mockUser: User = {
   isEmailVerified: false,
   isActive: true,
   avatarUrl: null,
+  phone: null,
+  dateOfBirth: null,
+  gender: null,
+  jobTitle: null,
+  department: null,
+  bio: null,
+  locale: 'en-GB',
+  timezone: 'Europe/London',
+  lastLoginAt: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
   isDeleted: false,
@@ -38,6 +48,7 @@ const mockUsersService = {
   create: jest.fn(),
   findById: jest.fn(),
   findByEmail: jest.fn(),
+  updateLastLoginAt: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockJwtService = {
