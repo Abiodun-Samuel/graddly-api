@@ -4,12 +4,16 @@
   "testEnvironment": "node",
   "maxWorkers": 1,
   "testRegex": ".e2e-spec.ts$",
+  "testPathIgnorePatterns": ["/oidc-enabled\\.e2e-spec\\.ts$"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "^(\\.{1,2}/.*)\\.js$": "$1"
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^openid-client$": "<rootDir>/mocks/openid-client.ts",
+    "^openid-client/passport$": "<rootDir>/mocks/openid-client-passport.ts"
   },
-  "setupFiles": ["./load-env.ts", "./import-instrument.ts"],
-  "globalTeardown": "./global-teardown.ts"
+  "setupFiles": ["<rootDir>/load-env.ts", "<rootDir>/import-instrument.ts"],
+  "globalSetup": "<rootDir>/global-setup.ts",
+  "globalTeardown": "<rootDir>/global-teardown.ts"
 }

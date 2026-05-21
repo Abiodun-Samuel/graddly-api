@@ -14,6 +14,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -43,9 +44,12 @@ import { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { ActiveOrganisationMeDto } from './dto/active-organisation-context.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
+import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 import type { AuthenticatedUser } from './interfaces/authenticated-user.interface.js';
@@ -72,19 +76,21 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
-  ) {}
+  ) { }
 
   @Post('signup')
   @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
-  @ResponseMessage('Account created successfully')
+  @ResponseMessage(
+    'Account created. Please check your email to verify your account.',
+  )
   @ApiOperation({
     summary: 'Register a new user',
     description:
-      'Creates a new user account with the provided details. Returns a short-lived access token and a long-lived refresh token. The email must be unique across the system. Rate limited to 5 requests per minute.',
+      'Creates a new user account and sends a verification email. JWTs are issued after email verification via POST /auth/verify-email. The email must be unique across the system. Rate limited to 5 requests per minute.',
   })
   @ApiCreatedResponse({
-    description: 'User registered successfully',
-    type: ApiAuthResponseDto,
+    description:
+      'User registered successfully; verification email sent if applicable',
   })
   @ApiUnprocessableEntityResponse({
     description: 'Validation failed',
@@ -120,6 +126,10 @@ export class AuthController {
     description: 'Invalid credentials or account deactivated',
     type: ErrorResponseDto,
   })
+  @ApiForbiddenResponse({
+    description: 'Email address not verified',
+    type: ErrorResponseDto,
+  })
   @ApiTooManyRequestsResponse({
     description: 'Too many requests',
     type: TooManyRequestsResponseDto as never,
@@ -128,20 +138,135 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ResponseMessage('If an account exists, a password reset email has been sent')
+  @ApiOperation({
+    summary: 'Request a password reset email',
+    description:
+      'Sends a password reset link when an active account exists for the email. Always returns 204 to avoid email enumeration. Rate limited to 5 requests per minute.',
+  })
+  @ApiNoContentResponse({
+    description:
+      'Request accepted (no indication whether the email is registered)',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Password reset successfully')
+  @ApiOperation({
+    summary: 'Reset password with a token',
+    description:
+      'Sets a new password using the token from the reset email and returns a new JWT pair. Rate limited to 5 requests per minute.',
+  })
+  @ApiOkResponse({
+    description: 'Password updated and tokens issued',
+    type: ApiAuthResponseDto,
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or expired reset token, or account deactivated',
+    type: ErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('verify-email')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Email verified successfully')
+  @ApiOperation({
+    summary: 'Verify email with a token',
+    description:
+      'Marks the email as verified using the token from the verification email and returns a new JWT pair. Rate limited to 5 requests per minute.',
+  })
+  @ApiOkResponse({
+    description: 'Email verified and tokens issued',
+    type: ApiAuthResponseDto,
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description:
+      'Invalid or expired verification token, or account deactivated',
+    type: ErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ResponseMessage(
+    'If an account exists and is unverified, a verification email has been sent',
+  )
+  @ApiOperation({
+    summary: 'Resend email verification',
+    description:
+      'Sends a new verification email when an active, unverified account exists for the email. Always returns 204 to avoid email enumeration. Rate limited to 5 requests per minute.',
+  })
+  @ApiNoContentResponse({
+    description:
+      'Request accepted (no indication whether the email is registered or already verified)',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Validation failed',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many requests',
+    type: TooManyRequestsResponseDto as never,
+  })
+  async resendVerification(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.resendVerification(dto.email);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Token refreshed successfully')
   @ApiOperation({
     summary: 'Refresh an access token',
     description:
-      'Exchanges a valid refresh token for a new access/refresh token pair. The old refresh token is invalidated (rotation). Fails if the refresh token is expired or already used.',
+      'Exchanges a valid refresh token for a new access/refresh token pair. The old refresh token is invalidated (rotation). Reuse of a rotated token invalidates all refresh sessions for that user. Fails if the refresh token is expired or already used.',
   })
   @ApiOkResponse({
     description: 'Tokens refreshed successfully',
     type: ApiAuthResponseDto,
   })
   @ApiUnauthorizedResponse({
-    description: 'Invalid or expired refresh token',
+    description: 'Invalid or expired refresh token, or account deactivated',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Email address not verified',
     type: ErrorResponseDto,
   })
   refresh(@Body() dto: RefreshTokenDto) {
@@ -164,6 +289,25 @@ export class AuthController {
   })
   logout(@Body() dto: RefreshTokenDto): Promise<void> {
     return this.authService.logout(dto.refreshToken);
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ResponseMessage('Logged out from all devices')
+  @ApiOperation({
+    summary: 'Log out from all devices',
+    description:
+      'Invalidates every refresh token for the current user by bumping the session version. Existing access tokens remain valid until they expire. Requires a valid access token.',
+  })
+  @ApiNoContentResponse({ description: 'All refresh sessions invalidated' })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+    type: ErrorResponseDto,
+  })
+  logoutAll(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    return this.authService.logoutAll(user.id);
   }
 
   @Get('me')
@@ -259,14 +403,14 @@ export class AuthController {
       this.usersService.updateProfile(user.id, dto),
       portalType
         ? this.authService
-            .resolveActiveOrganisationForUser(user.id, portalType)
-            .catch((err) => {
-              this.logger.error(
-                'Failed to resolve active organisation after profile update',
-                err,
-              );
-              return null;
-            })
+          .resolveActiveOrganisationForUser(user.id, portalType)
+          .catch((err) => {
+            this.logger.error(
+              'Failed to resolve active organisation after profile update',
+              err,
+            );
+            return null;
+          })
         : Promise.resolve(null),
     ]);
 

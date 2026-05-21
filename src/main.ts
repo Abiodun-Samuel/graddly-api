@@ -2,6 +2,8 @@ import 'dotenv/config';
 
 import './config/env-bootstrap.js';
 
+import './database/postgres-query-runner.patch.js';
+
 import './instrument.js';
 
 import { ConfigService } from '@nestjs/config';

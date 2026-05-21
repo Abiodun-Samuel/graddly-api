@@ -51,5 +51,10 @@ export const winstonConfigFactory = (
     );
   }
 
-  return { transports };
+  const nodeEnv = config.get<string>('app.nodeEnv', 'development');
+
+  return {
+    level: nodeEnv === 'test' ? 'silent' : 'info',
+    transports,
+  };
 };

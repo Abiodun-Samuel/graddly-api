@@ -91,8 +91,21 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
+          DB_USERNAME: graddly_app
+          DB_PASSWORD: graddly_app
+          DB_NAME: graddly_test
+
+      - name: Provision application DB role
+        run: yarn db:provision-role
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
+          DB_USERNAME: graddly_app
+          DB_PASSWORD: graddly_app
           DB_NAME: graddly_test
 
       - name: Show migration status
@@ -100,8 +113,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
           DB_NAME: graddly_test
 
   e2e-tests:
@@ -152,8 +165,21 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
+          DB_USERNAME: graddly_app
+          DB_PASSWORD: graddly_app
+          DB_NAME: graddly_test
+
+      - name: Provision application DB role
+        run: yarn db:provision-role
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
+          DB_USERNAME: graddly_app
+          DB_PASSWORD: graddly_app
           DB_NAME: graddly_test
 
       - name: Show migration status
@@ -161,8 +187,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
           DB_NAME: graddly_test
 
       - name: Run e2e tests
@@ -171,8 +197,10 @@ jobs:
           PORT: 3000
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
+          DB_MIGRATION_USERNAME: postgres
+          DB_MIGRATION_PASSWORD: postgres
+          DB_USERNAME: graddly_app
+          DB_PASSWORD: graddly_app
           DB_NAME: graddly_test
           JWT_SECRET: ci-test-jwt-secret
           JWT_ACCESS_EXPIRES_IN: 15m
@@ -180,4 +208,4 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           THROTTLE_ENABLED: "false"
-          TENANT_DB_CONTEXT_ENABLED: "false"
+          TENANT_DB_CONTEXT_ENABLED: "true"

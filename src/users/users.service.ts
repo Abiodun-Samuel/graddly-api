@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import {
   ConflictException,
   Injectable,
@@ -17,7 +19,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(data: {
     firstName: string;
@@ -97,5 +99,42 @@ export class UsersService {
 
   async updateLastLoginAt(userId: string): Promise<void> {
     await this.usersRepository.update(userId, { lastLoginAt: new Date() });
+  }
+
+  async createFromOidc(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  }): Promise<User> {
+    const existing = await this.usersRepository.findOne({
+      where: { email: data.email },
+    });
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
+
+    const randomPassword = randomBytes(32).toString('base64url');
+    const hashedPassword = await bcrypt.hash(randomPassword, SALT_ROUNDS);
+    const user = this.usersRepository.create({
+      ...data,
+      password: hashedPassword,
+      isEmailVerified: true,
+    });
+    return this.usersRepository.save(user);
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.usersRepository.update(
+      { id: userId },
+      { isEmailVerified: true },
+    );
+  }
+
+  async updatePassword(userId: string, plainPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+    await this.usersRepository.update(
+      { id: userId },
+      { password: hashedPassword },
+    );
   }
 }

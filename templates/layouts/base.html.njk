@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{{ appName }}{% endblock %}</title>
+  </head>
+  <body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
+    {% block content %}{% endblock %}
+    <p style="margin-top: 2rem; font-size: 0.875rem; color: #666;">
+      © {{ copyrightYear }} {{ appName }}
+      {% if supportUrl %} · <a href="{{ supportUrl }}">Support</a>{% endif %}
+      {% if privacyUrl %} · <a href="{{ privacyUrl }}">Privacy</a>{% endif %}
+    </p>
+  </body>
+</html>

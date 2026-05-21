@@ -1,0 +1,21 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "maxWorkers": 1,
+  "testRegex": "oidc-enabled\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^openid-client$": "<rootDir>/mocks/openid-client.ts",
+    "^openid-client/passport$": "<rootDir>/mocks/openid-client-passport.ts"
+  },
+  "setupFiles": [
+    "<rootDir>/load-env-oidc-enabled.ts",
+    "<rootDir>/import-instrument.ts"
+  ],
+  "globalSetup": "<rootDir>/global-setup.ts",
+  "globalTeardown": "<rootDir>/global-teardown.ts"
+}

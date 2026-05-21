@@ -27,17 +27,24 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+<<<<<<< HEAD
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
+=======
+import { setCurrentUserId } from '../common/context/correlation-id-context.js';
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 import {
   ErrorResponseDto,
   ValidationErrorResponseDto,
 } from '../common/dto/error-response.dto.js';
 import { ResponseMessage } from '../common/interceptors/response-message.decorator.js';
+import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
 
 import { CreateOrganisationDto } from './dto/create-organisation.dto.js';
 import { OrganisationResponseDto } from './dto/organisation-response.dto.js';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto.js';
 import { OrganisationsService } from './organisations.service.js';
+
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
 
 @ApiTags('Organisations')
 @ApiExtraModels(OrganisationResponseDto)
@@ -49,7 +56,7 @@ import { OrganisationsService } from './organisations.service.js';
   type: ErrorResponseDto,
 })
 export class OrganisationsController {
-  constructor(private readonly organisationsService: OrganisationsService) { }
+  constructor(private readonly organisationsService: OrganisationsService) {}
 
   @Post()
   @ResponseMessage('Organisation created successfully')
@@ -79,6 +86,11 @@ export class OrganisationsController {
     @Body() dto: CreateOrganisationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+<<<<<<< HEAD
+=======
+    setCurrentUserId(user.id);
+    setLastKnownUserIdForGuc(user.id);
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
     return this.organisationsService.create(dto, user.id);
   }
 

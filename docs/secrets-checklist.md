@@ -8,7 +8,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 |------|-----------|--------|
 | JWT signing key | `JWT_SECRET` | Min **32** characters. Never use `change-me-in-production`. Rotate if leaked. |
 | Swagger UI basic auth | `SWAGGER_PASSWORD` | Min **12** characters when `NODE_ENV` is `production` or `staging`. |
-| Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. |
+| Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. See [database-setup.md](./database-setup.md) for migrator vs app roles and RLS. |
 | Redis | `REDIS_HOST`, `REDIS_PORT` | TLS and auth if exposed beyond the private network. |
 
 ## Strongly recommended
@@ -18,6 +18,27 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Error monitoring | `SENTRY_DSN` | Enables server-side reporting; keep DSN out of client bundles and public repos. |
 | Sentry environment | `SENTRY_ENVIRONMENT` | Set to `staging` or `production` for clean issue separation. |
 | Log shipping | `LOGGLY_TOKEN`, `LOGGLY_SUBDOMAIN` | Optional; omit in dev if unused. |
+
+## When transactional email (Resend) is enabled
+
+| Item | Variable | Notes |
+|------|-----------|--------|
+| Email provider | `EMAIL_PROVIDER` | Set to `resend` in deployed environments that send transactional email. |
+| Resend API key | `RESEND_API_KEY` | From the [Resend dashboard](https://resend.com/api-keys). |
+| From address | `RESEND_FROM_EMAIL` | Must use a verified domain (e.g. `Graddly <noreply@yourdomain.com>`). |
+| Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (see [password-reset.md](./password-reset.md), [email-verification.md](./email-verification.md)). |
+| Verification TTL | `EMAIL_VERIFICATION_TOKEN_TTL_SECONDS` | Optional; default 24 hours. |
+| JWT access TTL | `JWT_ACCESS_EXPIRES_IN` | Default `15m`. See [auth-tokens.md](./auth-tokens.md). |
+| JWT refresh TTL | `JWT_REFRESH_EXPIRES_IN` | Default `7d`. |
+| Refresh reuse grace | `REFRESH_REUSE_GRACE_SECONDS` | Tombstone window after rotation (default `30`). |
+
+## When GOV.UK One Login (OIDC) is enabled
+
+| Item | Variable | Notes |
+|------|-----------|--------|
+| OIDC client | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | From One Login service configuration; required when `OIDC_ENABLED=true`. See [oidc-one-login.md](./oidc-one-login.md). |
+| Redirect URI | `OIDC_REDIRECT_URI` | Must match the URL registered in One Login for this environment. |
+| OIDC session signing | `OIDC_SESSION_SECRET` | Min **32** characters in production/staging when OIDC is enabled. |
 
 ## Operational hygiene
 

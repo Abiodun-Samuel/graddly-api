@@ -5,7 +5,10 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { OrganisationMembership } from './entities/organisation-membership.entity.js';
 import { Organisation } from './entities/organisation.entity.js';
+<<<<<<< HEAD
 import { MembershipStatus } from './membership-status.enum.js';
+=======
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 import { OrganisationRole } from './organisation-role.enum.js';
 import { OrganisationsService } from './organisations.service.js';
 
@@ -22,6 +25,7 @@ const baseOrgDto = {
 describe('OrganisationsService', () => {
   let service: OrganisationsService;
   let repository: jest.Mocked<
+<<<<<<< HEAD
     Pick<Repository<Organisation>, 'find' | 'findOne' | 'save' | 'softRemove'> & {
       createQueryBuilder: jest.Mock;
     }
@@ -40,12 +44,44 @@ describe('OrganisationsService', () => {
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([]),
     };
+=======
+    Pick<
+      Repository<Organisation>,
+      'create' | 'save' | 'find' | 'findOne' | 'softRemove' | 'manager'
+    >
+  >;
+  let membershipRepository: jest.Mocked<
+    Pick<Repository<OrganisationMembership>, 'create' | 'save'>
+  >;
+  let transactionQuery: jest.Mock;
+  let transactionMock: jest.Mock;
+  let transactionMembershipRepo: {
+    create: jest.Mock;
+    save: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    transactionQuery = jest.fn().mockResolvedValue(undefined);
+    transactionMembershipRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    transactionMock = jest.fn(
+      async (work: (manager: unknown) => Promise<void>) => {
+        await work({
+          query: transactionQuery,
+          getRepository: () => transactionMembershipRepo,
+        });
+      },
+    );
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
       softRemove: jest.fn(),
+<<<<<<< HEAD
       createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
@@ -58,13 +94,33 @@ describe('OrganisationsService', () => {
       transaction: jest.fn().mockImplementation(
         (cb: (manager: typeof mockManager) => Promise<unknown>) => cb(mockManager),
       ),
+=======
+      manager: {
+        transaction: transactionMock,
+      } as unknown as Repository<Organisation>['manager'],
+    };
+    membershipRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrganisationsService,
+<<<<<<< HEAD
         { provide: getRepositoryToken(Organisation), useValue: repository },
         { provide: DataSource, useValue: mockDataSource },
+=======
+        {
+          provide: getRepositoryToken(Organisation),
+          useValue: repository,
+        },
+        {
+          provide: getRepositoryToken(OrganisationMembership),
+          useValue: membershipRepository,
+        },
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
       ],
     }).compile();
 
@@ -72,6 +128,7 @@ describe('OrganisationsService', () => {
   });
 
   describe('create', () => {
+<<<<<<< HEAD
     it('auto-generates slug from name and creates org + membership in a transaction', async () => {
       // generateUniqueSlug: no existing slugs
       mockQueryBuilder.getMany.mockResolvedValue([]);
@@ -111,6 +168,54 @@ describe('OrganisationsService', () => {
         joinedAt: expect.any(Date),
       });
       expect(result).toEqual(orgEntity);
+=======
+    it('creates when slug is free', async () => {
+      const entity = {
+        id: 'org-1',
+        name: 'Acme',
+        slug: 'acme',
+      } as Organisation;
+      repository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(entity);
+      const membership = {
+        id: 'mem-1',
+        role: OrganisationRole.OWNER,
+      } as OrganisationMembership;
+      transactionMembershipRepo.create.mockReturnValue(membership);
+      transactionMembershipRepo.save.mockResolvedValue(membership);
+
+      const result = await service.create(
+        {
+          name: 'Acme',
+          slug: 'Acme',
+        },
+        'user-creator',
+      );
+
+      expect(repository.findOne).toHaveBeenNthCalledWith(1, {
+        where: { slug: 'acme' },
+      });
+      expect(transactionQuery).toHaveBeenCalledWith(
+        `INSERT INTO organisations (id, name, slug) VALUES ($1, $2, $3)`,
+        [expect.any(String), 'Acme', 'acme'],
+      );
+      expect(transactionMembershipRepo.create).toHaveBeenCalledTimes(1);
+      const createCalls = transactionMembershipRepo.create.mock.calls as [
+        [
+          {
+            organisation: { id: string };
+            user: { id: string };
+            role: OrganisationRole;
+          },
+        ],
+      ];
+      const createArg = createCalls[0][0];
+      expect(createArg.organisation.id).toEqual(expect.any(String));
+      expect(createArg.user).toEqual({ id: 'user-creator' });
+      expect(createArg.role).toBe(OrganisationRole.OWNER);
+      expect(result).toEqual(entity);
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
     });
 
     it('appends numeric suffix when generated slug is already taken', async () => {
@@ -121,6 +226,7 @@ describe('OrganisationsService', () => {
       ] as Organisation[]);
       repository.findOne.mockResolvedValueOnce(null);
 
+<<<<<<< HEAD
       const orgEntity = { id: 'org-2', name: 'Acme Trust', slug: 'acme-trust-2' } as Organisation;
       mockManager.create.mockReturnValueOnce(orgEntity as never).mockReturnValueOnce({} as never);
       mockManager.save.mockResolvedValueOnce(orgEntity as never).mockResolvedValueOnce({} as never);
@@ -160,6 +266,12 @@ describe('OrganisationsService', () => {
       await expect(service.create(baseOrgDto, 'user-1')).rejects.toThrow(
         'DB constraint violation',
       );
+=======
+      await expect(
+        service.create({ name: 'A', slug: 'taken-slug' }, 'user-creator'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(transactionMock).not.toHaveBeenCalled();
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
     });
   });
 

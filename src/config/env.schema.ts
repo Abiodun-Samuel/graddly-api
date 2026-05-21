@@ -20,6 +20,12 @@ export const envSchema = z
     JWT_SECRET: z.string().default('change-me-in-production'),
     JWT_ACCESS_EXPIRES_IN: z.string().min(1).default('15m'),
     JWT_REFRESH_EXPIRES_IN: z.string().min(1).default('7d'),
+    REFRESH_REUSE_GRACE_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(300)
+      .default(30),
 
     REDIS_HOST: z.string().min(1).default('localhost'),
     REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
@@ -34,8 +40,8 @@ export const envSchema = z
     TENANT_DB_CONTEXT_ENABLED: z
       .string()
       .optional()
-      .default('false')
-      .transform((v) => v === 'true'),
+      .default('true')
+      .transform((v) => v !== 'false'),
 
     SWAGGER_PASSWORD: z.string().optional().default(''),
     LOGGLY_TOKEN: z.string().optional().default(''),
@@ -45,6 +51,51 @@ export const envSchema = z
     SENTRY_ENVIRONMENT: z.string().optional().default(''),
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
     SENTRY_PROFILES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+
+    OIDC_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+
+    OIDC_ISSUER: z.string().url().optional(),
+    OIDC_DISCOVERY_URL: z.string().url().optional(),
+    OIDC_CLIENT_ID: z.string().optional().default(''),
+    OIDC_CLIENT_SECRET: z.string().optional().default(''),
+    OIDC_REDIRECT_URI: z.string().url().optional(),
+    OIDC_SCOPES: z.string().min(1).default('openid email'),
+    OIDC_UI_LOCALES: z.string().min(1).default('en'),
+    OIDC_VTR: z.string().optional().default(''),
+
+    OIDC_SESSION_SECRET: z.string().optional().default(''),
+    OIDC_SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(86_400)
+      .default(600),
+    OIDC_SUCCESS_REDIRECT_URI: z.string().url().optional(),
+
+    OIDC_PROVISIONING_MODE: z
+      .enum(['auto_create', 'link_existing'])
+      .default('auto_create'),
+
+    RESEND_API_KEY: z.string().optional().default(''),
+    RESEND_FROM_EMAIL: z.string().optional().default(''),
+    EMAIL_PROVIDER: z.enum(['resend', 'noop']).default('noop'),
+    PASSWORD_RESET_TOKEN_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(300)
+      .max(86_400)
+      .default(3600),
+    EMAIL_VERIFICATION_TOKEN_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(300)
+      .max(172_800)
+      .default(86_400),
+    FRONTEND_BASE_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -75,6 +126,119 @@ export const envSchema = z
           'SWAGGER_PASSWORD must be set (min 12 characters) when NODE_ENV is production or staging.',
         path: ['SWAGGER_PASSWORD'],
       });
+    }
+
+    if (data.EMAIL_PROVIDER === 'resend' && deployed) {
+      if (!data.RESEND_API_KEY?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'RESEND_API_KEY must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['RESEND_API_KEY'],
+        });
+      }
+
+      if (!data.RESEND_FROM_EMAIL?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'RESEND_FROM_EMAIL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['RESEND_FROM_EMAIL'],
+        });
+      }
+
+      if (!data.FRONTEND_BASE_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'FRONTEND_BASE_URL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
+          path: ['FRONTEND_BASE_URL'],
+        });
+      }
+    }
+
+    if (data.OIDC_ENABLED && deployed) {
+      if (!data.OIDC_CLIENT_SECRET?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'OIDC_CLIENT_SECRET must be set when OIDC_ENABLED is true and NODE_ENV is production or staging.',
+          path: ['OIDC_CLIENT_SECRET'],
+        });
+      }
+
+      const weakSessionSecret =
+        !data.OIDC_SESSION_SECRET?.trim() ||
+        data.OIDC_SESSION_SECRET.length < 32;
+
+      if (weakSessionSecret) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'OIDC_SESSION_SECRET must be set (min 32 characters) when OIDC_ENABLED is true and NODE_ENV is production or staging.',
+          path: ['OIDC_SESSION_SECRET'],
+        });
+      }
+    }
+  })
+  .superRefine((data, ctx) => {
+    if (!data.OIDC_ENABLED) {
+      return;
+    }
+
+    if (!data.OIDC_CLIENT_ID?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_CLIENT_ID is required when OIDC_ENABLED is true.',
+        path: ['OIDC_CLIENT_ID'],
+      });
+    }
+
+    if (!data.OIDC_CLIENT_SECRET?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_CLIENT_SECRET is required when OIDC_ENABLED is true.',
+        path: ['OIDC_CLIENT_SECRET'],
+      });
+    }
+
+    if (!data.OIDC_REDIRECT_URI) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'OIDC_REDIRECT_URI is required when OIDC_ENABLED is true.',
+        path: ['OIDC_REDIRECT_URI'],
+      });
+    }
+
+    const hasDiscovery =
+      Boolean(data.OIDC_DISCOVERY_URL?.trim()) ||
+      Boolean(data.OIDC_ISSUER?.trim());
+
+    if (!hasDiscovery) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'OIDC_DISCOVERY_URL or OIDC_ISSUER is required when OIDC_ENABLED is true.',
+        path: ['OIDC_DISCOVERY_URL'],
+      });
+    }
+
+    if (data.OIDC_VTR?.trim()) {
+      try {
+        const parsed: unknown = JSON.parse(data.OIDC_VTR);
+        if (
+          !Array.isArray(parsed) ||
+          !parsed.every((item) => typeof item === 'string')
+        ) {
+          throw new Error('invalid');
+        }
+      } catch {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'OIDC_VTR must be a JSON array of strings when set.',
+          path: ['OIDC_VTR'],
+        });
+      }
     }
   });
 

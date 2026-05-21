@@ -1,10 +1,18 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 
+import {
+  setCurrentOrganisationId,
+  setCurrentUserId,
+} from '../../common/context/correlation-id-context.js';
 import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 import { UsersService } from '../../users/users.service.js';
 import { AuthenticatedUser } from '../interfaces/authenticated-user.interface.js';
@@ -29,7 +37,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: IJwtPayload): Promise<AuthenticatedUser> {
-    const user = await this.usersService.findById(payload.sub);
+    setCurrentUserId(payload.sub);
+    if (payload.orgId) {
+      setCurrentOrganisationId(payload.orgId);
+    }
+
+    let user;
+    try {
+      user = await this.usersService.findById(payload.sub);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new UnauthorizedException('Unauthorized');
+      }
+      throw error;
+    }
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }

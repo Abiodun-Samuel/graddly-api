@@ -1,15 +1,17 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import { EmailService } from '../../email/email.service.js';
 import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../../organisations/organisation-role.enum.js';
 import { RedisService } from '../../redis/redis.service.js';
 import { User } from '../../users/entities/user.entity.js';
 import { UsersService } from '../../users/users.service.js';
 import { AuthService } from '../auth.service.js';
+import { RefreshTokenService } from '../refresh-token.service.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -48,7 +50,12 @@ const mockUsersService = {
   create: jest.fn(),
   findById: jest.fn(),
   findByEmail: jest.fn(),
+<<<<<<< HEAD
   updateLastLoginAt: jest.fn().mockResolvedValue(undefined),
+=======
+  updatePassword: jest.fn(),
+  markEmailVerified: jest.fn(),
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 };
 
 const mockJwtService = {
@@ -57,18 +64,30 @@ const mockJwtService = {
 
 const mockConfigService = {
   get: jest.fn((key: string, fallback?: string) => {
-    const values: Record<string, string> = {
-      ['app.jwt.accessExpiresIn']: '15m',
-      ['app.jwt.refreshExpiresIn']: '7d',
+    const values: Record<string, string | number> = {
+      ['app.jwt.accessExpiresInSeconds']: 900,
+      ['app.passwordReset.tokenTtlSeconds']: 3600,
+      ['app.emailVerification.tokenTtlSeconds']: 86_400,
     };
     return values[key] ?? fallback;
   }),
+};
+
+const mockRefreshTokenService = {
+  issue: jest.fn().mockResolvedValue('new-refresh-token'),
+  consume: jest.fn(),
+  revoke: jest.fn(),
+  revokeAllForUser: jest.fn(),
 };
 
 const mockRedisService = {
   get: jest.fn(),
   set: jest.fn(),
   del: jest.fn(),
+};
+
+const mockEmailService = {
+  sendEmail: jest.fn(),
 };
 
 const mockMembershipRepo = {
@@ -87,6 +106,11 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisService, useValue: mockRedisService },
+        {
+          provide: RefreshTokenService,
+          useValue: mockRefreshTokenService,
+        },
+        { provide: EmailService, useValue: mockEmailService },
         {
           provide: getRepositoryToken(OrganisationMembership),
           useValue: mockMembershipRepo,
@@ -107,27 +131,36 @@ describe('AuthService', () => {
       password: 'P@ssw0rd!',
     };
 
-    it('should create a user and return tokens', async () => {
+    it('should create a user and send verification email without tokens', async () => {
       mockUsersService.create.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockResolvedValue(undefined);
 
-      const result = await authService.signup(dto);
+      await authService.signup(dto);
 
       expect(mockUsersService.create).toHaveBeenCalledWith(dto);
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
       expect(mockRedisService.set).toHaveBeenCalledWith(
-        expect.stringContaining('refresh:'),
+        expect.stringMatching(/^email-verify:/u),
         mockUser.id,
-        expect.any(Number),
+        86_400,
       );
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockUser.email,
+          template: 'email-verification',
+        }),
+      );
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
     });
   });
 
   describe('login', () => {
     const dto = { email: 'john@example.com', password: 'P@ssw0rd!' };
 
-    it('should return tokens for valid credentials', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+    it('should return tokens for valid credentials when email is verified', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...mockUser,
+        isEmailVerified: true,
+      });
       mockCompare.mockResolvedValue(true);
 
       const result = await authService.login(dto);
@@ -135,6 +168,15 @@ describe('AuthService', () => {
       expect(mockUsersService.findByEmail).toHaveBeenCalledWith(dto.email);
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
+    });
+
+    it('should throw ForbiddenException when email is not verified', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockCompare.mockResolvedValue(true);
+
+      await expect(authService.login(dto)).rejects.toThrow(
+        new ForbiddenException('Email address not verified'),
+      );
     });
 
     it('should throw UnauthorizedException if user not found', async () => {
@@ -169,48 +211,213 @@ describe('AuthService', () => {
   describe('refresh', () => {
     const refreshToken = 'valid-refresh-uuid';
 
-    it('should return new tokens for a valid refresh token', async () => {
-      mockRedisService.get.mockResolvedValue(mockUser.id);
-      mockUsersService.findById.mockResolvedValue(mockUser);
+    it('should return new tokens for a valid refresh token when email is verified', async () => {
+      mockRefreshTokenService.consume.mockResolvedValue({
+        userId: mockUser.id,
+        newRefreshToken: 'rotated-refresh-token',
+      });
+      mockUsersService.findById.mockResolvedValue({
+        ...mockUser,
+        isEmailVerified: true,
+      });
 
       const result = await authService.refresh(refreshToken);
 
-      expect(mockRedisService.get).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
+      expect(mockRefreshTokenService.consume).toHaveBeenCalledWith(
+        refreshToken,
       );
-      expect(mockRedisService.del).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
-      );
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      expect(result).toEqual({
+        accessToken: 'signed-jwt-token',
+        refreshToken: 'rotated-refresh-token',
+      });
     });
 
     it('should throw UnauthorizedException for invalid refresh token', async () => {
-      mockRedisService.get.mockResolvedValue(null);
+      mockRefreshTokenService.consume.mockRejectedValue(
+        new UnauthorizedException('Invalid or expired refresh token'),
+      );
 
       await expect(authService.refresh(refreshToken)).rejects.toThrow(
         new UnauthorizedException('Invalid or expired refresh token'),
       );
     });
+
+    it('should throw ForbiddenException when email is not verified', async () => {
+      mockRefreshTokenService.consume.mockResolvedValue({
+        userId: mockUser.id,
+        newRefreshToken: 'rotated-refresh-token',
+      });
+      mockUsersService.findById.mockResolvedValue(mockUser);
+
+      await expect(authService.refresh(refreshToken)).rejects.toThrow(
+        new ForbiddenException('Email address not verified'),
+      );
+    });
   });
 
   describe('logout', () => {
-    it('should delete the refresh token from Redis', async () => {
+    it('should revoke the refresh token', async () => {
       const refreshToken = 'token-to-invalidate';
 
       await authService.logout(refreshToken);
 
-      expect(mockRedisService.del).toHaveBeenCalledWith(
-        `refresh:${refreshToken}`,
+      expect(mockRefreshTokenService.revoke).toHaveBeenCalledWith(refreshToken);
+    });
+  });
+
+  describe('logoutAll', () => {
+    it('should revoke all refresh sessions for the user', async () => {
+      await authService.logoutAll(mockUser.id);
+
+      expect(mockRefreshTokenService.revokeAllForUser).toHaveBeenCalledWith(
+        mockUser.id,
       );
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('stores token and sends email for active user', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockResolvedValue(undefined);
+
+      await authService.requestPasswordReset(mockUser.email);
+
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringMatching(/^password-reset:/u),
+        mockUser.id,
+        3600,
+      );
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: mockUser.email,
+          template: 'password-reset',
+        }),
+      );
+    });
+
+    it('does nothing when user is unknown', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await authService.requestPasswordReset('unknown@example.com');
+
+      expect(mockRedisService.set).not.toHaveBeenCalled();
+      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when email send fails', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockRejectedValue(new Error('Resend down'));
+
+      await expect(
+        authService.requestPasswordReset(mockUser.email),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('resetPassword', () => {
+    const token = '550e8400-e29b-41d4-a716-446655440000';
+
+    it('updates password and returns tokens for valid token', async () => {
+      mockRedisService.get.mockResolvedValue(mockUser.id);
+      mockUsersService.findById.mockResolvedValue(mockUser);
+
+      const result = await authService.resetPassword(token, 'N3wP@ssw0rd!');
+
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        `password-reset:${token}`,
+      );
+      expect(mockUsersService.updatePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        'N3wP@ssw0rd!',
+      );
+      expect(mockRefreshTokenService.revokeAllForUser).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+    });
+
+    it('throws for invalid token', async () => {
+      mockRedisService.get.mockResolvedValue(null);
+
+      await expect(
+        authService.resetPassword(token, 'N3wP@ssw0rd!'),
+      ).rejects.toThrow(
+        new UnauthorizedException('Invalid or expired password reset token'),
+      );
+    });
+  });
+
+  describe('verifyEmail', () => {
+    const token = '550e8400-e29b-41d4-a716-446655440001';
+
+    it('marks email verified and returns tokens for valid token', async () => {
+      mockRedisService.get.mockResolvedValue(mockUser.id);
+      mockUsersService.findById.mockResolvedValue({
+        ...mockUser,
+        isEmailVerified: true,
+      });
+
+      const result = await authService.verifyEmail(token);
+
+      expect(mockRedisService.del).toHaveBeenCalledWith(
+        `email-verify:${token}`,
+      );
+      expect(mockUsersService.markEmailVerified).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+    });
+
+    it('throws for invalid token', async () => {
+      mockRedisService.get.mockResolvedValue(null);
+
+      await expect(authService.verifyEmail(token)).rejects.toThrow(
+        new UnauthorizedException(
+          'Invalid or expired email verification token',
+        ),
+      );
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('sends email for active unverified user', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockEmailService.sendEmail.mockResolvedValue(undefined);
+
+      await authService.resendVerification(mockUser.email);
+
+      expect(mockEmailService.sendEmail).toHaveBeenCalled();
+    });
+
+    it('does nothing when user is already verified', async () => {
+      mockUsersService.findByEmail.mockResolvedValue({
+        ...mockUser,
+        isEmailVerified: true,
+      });
+
+      await authService.resendVerification(mockUser.email);
+
+      expect(mockRedisService.set).not.toHaveBeenCalled();
+      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when user is unknown', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await authService.resendVerification('unknown@example.com');
+
+      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
     });
   });
 
   describe('JWT payload (org claims)', () => {
     const dto = { email: 'john@example.com', password: 'P@ssw0rd!' };
+    const verifiedUser = { ...mockUser, isEmailVerified: true };
 
     it('signs access token without orgId when user has no memberships', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmail.mockResolvedValue(verifiedUser);
       mockCompare.mockResolvedValue(true);
       mockMembershipRepo.find.mockResolvedValue([]);
 
@@ -226,7 +433,7 @@ describe('AuthService', () => {
     });
 
     it('includes orgId and roles when active membership exists', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
+      mockUsersService.findByEmail.mockResolvedValue(verifiedUser);
       mockCompare.mockResolvedValue(true);
       mockMembershipRepo.find.mockResolvedValue([
         {

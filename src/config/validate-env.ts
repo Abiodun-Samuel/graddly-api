@@ -40,3 +40,8 @@ export function getEnv(): Env {
   }
   return cached;
 }
+
+/** Clears cached env (e2e suites that reconfigure process.env before importing AppModule). */
+export function resetEnvCache(): void {
+  cached = undefined;
+}

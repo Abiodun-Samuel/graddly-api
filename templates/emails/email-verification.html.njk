@@ -1,0 +1,10 @@
+{% extends "layouts/base.html.njk" %}
+
+{% block title %}Verify your {{ appName }} email{% endblock %}
+
+{% block content %}
+<p>Hi {{ firstName }},</p>
+<p>Thanks for signing up for {{ appName }}. Please confirm your email address to activate your account.</p>
+<p><a href="{{ verifyUrl }}">Verify email address</a></p>
+<p>This link expires in {{ expiresInLabel }}. If you did not create an account, you can ignore this email.</p>
+{% endblock %}

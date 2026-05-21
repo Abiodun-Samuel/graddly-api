@@ -45,7 +45,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 |------|--------|----------|-----|----------|
 | DB role + `SET app.current_org` (or session var) pattern; TypeORM connection/query runner hooks | Not started | Phase C | 8 | TBD |
 | RLS policies for PII tables introduced so far (`users`, org tables) + migration | Not started | Phase C | 8 | TBD |
-| Integration tests: cannot read other org’s rows **[optional RLS]** | Not started | Phase C | 5 | TBD |
+| Integration tests: cannot read other org’s rows **[optional RLS]** | Done | Phase C | 5 | TBD |
 
 ---
 
@@ -53,12 +53,12 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 
 | Task | Status | Timeline | SP | Assignee |
 |------|--------|----------|-----|----------|
-| Passport **OIDC** strategy (provider-agnostic) + config placeholders for One Login | Not started | Phase D | 5 | TBD |
-| OAuth callback routes, state/nonce, token exchange | Not started | Phase D | 5 | TBD |
-| Link One Login identity to existing user by verified email + first-time provisioning rules | Not started | Phase D | 5 | TBD |
-| Local email/password: keep; add **password reset** tokens + email template hook (SendGrid stub) | Not started | Phase D | 5 | TBD |
-| **Email verification** token flow for local sign-up | Not started | Phase D | 3 | TBD |
-| Refresh token rotation hardening: reuse detection, logout-all, align TTLs with doc (15m access / refresh policy) | Not started | Phase D | 3 | TBD |
+| Passport **OIDC** strategy (provider-agnostic) + config placeholders for One Login | Done | Phase D | 5 | TBD |
+| OAuth callback routes, state/nonce, token exchange | Done | Phase D | 5 | TBD |
+| Link One Login identity to existing user by verified email + first-time provisioning rules | Done | Phase D | 5 | TBD |
+| Local email/password: keep; add **password reset** tokens + email template hook (Resend stub) | Done | Phase D | 5 | TBD |
+| **Email verification** token flow for local sign-up | Done | Phase D | 3 | TBD |
+| Refresh token rotation hardening: reuse detection, logout-all, align TTLs with doc (15m access / refresh policy) | Done | Phase D | 3 | TBD |
 
 ---
 
@@ -66,7 +66,7 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 
 | Task | Status | Timeline | SP | Assignee |
 |------|--------|----------|-----|----------|
-| `Invitation` entity (email, role, org, expiry) + migration | Not started | Phase E | 3 | TBD |
+| `Invitation` entity (email, role, org, expiry) + migration | Done | Phase E | 3 | TBD |
 | POST `/invitations` + resend + revoke + accept flow (token) | Not started | Phase E | 5 | TBD |
 
 ---

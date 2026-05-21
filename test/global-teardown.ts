@@ -7,11 +7,12 @@ import { Client } from 'pg';
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.test') });
 
 export default async function globalTeardown(): Promise<void> {
+  // Truncate as superuser/migrator: graddly_app is subject to RLS and cannot TRUNCATE.
   const pg = new Client({
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USERNAME || 'graddly',
-    password: process.env.DB_PASSWORD || 'graddly',
+    user: process.env.DB_MIGRATION_USERNAME || 'postgres',
+    password: process.env.DB_MIGRATION_PASSWORD ?? '',
     database: process.env.DB_NAME || 'graddly_test',
   });
 

@@ -1,8 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import Redis from 'ioredis';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
 
 function buildOrgPayload(name: string, ukprn: string) {
   return {
@@ -18,10 +18,16 @@ function buildOrgPayload(name: string, ukprn: string) {
 
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
+import { verifyUserEmail } from './helpers/e2e-http.js';
 import {
   expectFilteredHttpExceptionBody,
   expectValidationErrorBody,
 } from './helpers/e2e-response-contracts.js';
+import {
+  clearEmailVerificationTokens,
+  findEmailVerificationTokenForUserId,
+} from './helpers/email-verification-redis.js';
+import { getUserIdByEmail } from './helpers/rls-db.js';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -43,7 +49,7 @@ describe('AuthController (e2e)', () => {
   const signupDto = {
     firstName: 'Jane',
     lastName: 'Doe',
-    email: 'jane@example.com',
+    email: `jane-e2e-${Date.now()}@example.com`,
     password: 'P@ssw0rd!',
   };
 
@@ -51,19 +57,16 @@ describe('AuthController (e2e)', () => {
   let refreshToken: string;
 
   describe('POST /auth/signup', () => {
-    it('should return 201 with { message, data: { accessToken, refreshToken } }', async () => {
+    it('should return 201 with verification message and no tokens', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/signup')
         .send(signupDto)
         .expect(201);
 
-      expect(res.body).toEqual({
-        message: 'Account created successfully',
-        data: {
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        },
-      });
+      expect(res.body.message).toBe(
+        'Account created. Please check your email to verify your account.',
+      );
+      expect(res.body.data).toBeUndefined();
     });
 
     it('should return 409 when email is already in use', async () => {
@@ -93,7 +96,122 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('Email verification', () => {
+    beforeEach(async () => {
+      await clearEmailVerificationTokens();
+    });
+
+    it('POST /auth/login returns 403 before email is verified', async () => {
+      const email = `unverified-login-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Unverified',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'P@ssw0rd!' })
+        .expect(403);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 403,
+        message: 'Email address not verified',
+        path: '/api/v1/auth/login',
+        error: 'Forbidden',
+      });
+    });
+
+    it('POST /auth/verify-email issues tokens and marks user verified', async () => {
+      const email = `verify-flow-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Verify',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      const userId = await getUserIdByEmail(email);
+      const token = await findEmailVerificationTokenForUserId(userId);
+      expect(token).toBeTruthy();
+
+      const verifyRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/verify-email')
+        .send({ token })
+        .expect(200);
+
+      expect(verifyRes.body.message).toBe('Email verified successfully');
+      expect(verifyRes.body.data).toEqual({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+
+      const meRes = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${verifyRes.body.data.accessToken}`)
+        .expect(200);
+
+      expect(meRes.body.data.isEmailVerified).toBe(true);
+    });
+
+    it('POST /auth/resend-verification returns 204', async () => {
+      const email = `resend-${Date.now()}@example.com`;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Resend',
+          lastName: 'User',
+          email,
+          password: 'P@ssw0rd!',
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/resend-verification')
+        .send({ email })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/resend-verification')
+        .send({ email: `unknown-${Date.now()}@example.com` })
+        .expect(204);
+    });
+
+    it('POST /auth/verify-email returns 401 for invalid token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/verify-email')
+        .send({ token: '00000000-0000-4000-8000-000000000099' })
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Invalid or expired email verification token',
+        path: '/api/v1/auth/verify-email',
+        error: 'Unauthorized',
+      });
+    });
+  });
+
   describe('POST /auth/login', () => {
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send(signupDto);
+      if (res.status !== 201 && res.status !== 409) {
+        throw new Error(
+          `Expected signup 201 or 409 before login tests, got ${res.status}`,
+        );
+      }
+      await verifyUserEmail(app, signupDto.email);
+    });
+
     it('should return 200 with { message, data: { accessToken, refreshToken } }', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -156,7 +274,7 @@ describe('AuthController (e2e)', () => {
           firstName: signupDto.firstName,
           lastName: signupDto.lastName,
           email: signupDto.email,
-          isEmailVerified: false,
+          isEmailVerified: true,
           isActive: true,
           avatarUrl: null,
           phone: null,
@@ -311,6 +429,93 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('Refresh token hardening', () => {
+    it('invalidates other sessions when a rotated token is reused', async () => {
+      const email = `reuse-detect-${Date.now()}@example.com`;
+      const password = 'P@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Reuse',
+          lastName: 'Detect',
+          email,
+          password,
+        })
+        .expect(201);
+
+      await verifyUserEmail(app, email);
+
+      const deviceA = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+      const tokenA = deviceA.body.data.refreshToken as string;
+
+      const deviceB = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+      const tokenB = deviceB.body.data.refreshToken as string;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenA })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenA })
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: tokenB })
+        .expect(401);
+    });
+  });
+
+  describe('POST /auth/logout-all', () => {
+    it('returns 204 and invalidates all refresh tokens for the user', async () => {
+      const email = `logout-all-${Date.now()}@example.com`;
+      const password = 'P@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Logout',
+          lastName: 'All',
+          email,
+          password,
+        })
+        .expect(201);
+
+      const verified = await verifyUserEmail(app, email);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout-all')
+        .set('Authorization', `Bearer ${verified.accessToken}`)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: verified.refreshToken })
+        .expect(401);
+    });
+
+    it('returns 401 without a bearer token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/logout-all')
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Unauthorized',
+        path: '/api/v1/auth/logout-all',
+      });
+    });
+  });
+
   describe('POST /auth/logout', () => {
     let logoutAccessToken: string;
     let logoutRefreshToken: string;
@@ -351,6 +556,7 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+<<<<<<< HEAD
   describe('GET /auth/me — activeOrganisation and portal type scoping', () => {
     let portalToken: string;
     let portalUserId: string;
@@ -370,6 +576,20 @@ describe('AuthController (e2e)', () => {
       portalUserId = (
         JSON.parse(Buffer.from(portalToken.split('.')[1], 'base64url').toString('utf8')) as { sub: string }
       ).sub;
+=======
+  describe('GET /auth/active-organisation', () => {
+    let ctxToken: string;
+    let ctxRefreshToken: string;
+
+    beforeAll(async () => {
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: signupDto.email, password: signupDto.password })
+        .expect(200);
+      ctxToken = login.body.data.accessToken as string;
+      ctxRefreshToken = login.body.data.refreshToken as string;
+    });
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
 
       // Create a provider org (portalType = 'provider')
       const providerRes = await request(app.getHttpServer())
@@ -388,6 +608,7 @@ describe('AuthController (e2e)', () => {
       employerOrgId = employerRes.body.data.id as string;
     });
 
+<<<<<<< HEAD
     it('activeOrganisation is null when user has no memberships', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/auth/me')
@@ -479,6 +700,18 @@ describe('AuthController (e2e)', () => {
         .get('/api/v1/auth/me')
         .set('Authorization', `Bearer ${portalToken}`)
         .set('X-Portal-Type', 'provider')
+=======
+      const refreshed = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: ctxRefreshToken })
+        .expect(200);
+      const freshAccess = refreshed.body.data.accessToken as string;
+      ctxRefreshToken = refreshed.body.data.refreshToken as string;
+
+      const ok = await request(app.getHttpServer())
+        .get('/api/v1/auth/active-organisation')
+        .set('Authorization', `Bearer ${freshAccess}`)
+>>>>>>> e35608a910d82e97ae3a7c6d358766c3bb7910c6
         .expect(200);
 
       expect(res.body.data.activeOrganisation).toBeNull();
@@ -488,6 +721,118 @@ describe('AuthController (e2e)', () => {
         `UPDATE organisation_memberships SET status = 'active' WHERE "userId" = $1 AND "organisationId" = $2`,
         [portalUserId, providerOrgId],
       );
+    });
+  });
+
+  describe('Password reset', () => {
+    function createTestRedis(): Redis {
+      return new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD || undefined,
+      });
+    }
+
+    async function clearPasswordResetTokens(): Promise<void> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+      await redis.quit();
+    }
+
+    async function getLatestPasswordResetToken(): Promise<string | null> {
+      const redis = createTestRedis();
+      const keys = await redis.keys('password-reset:*');
+      if (keys.length === 0) {
+        await redis.quit();
+        return null;
+      }
+      const key = keys[keys.length - 1];
+      const token = key.replace('password-reset:', '');
+      await redis.quit();
+      return token;
+    }
+
+    beforeEach(async () => {
+      await clearPasswordResetTokens();
+    });
+
+    it('POST /auth/forgot-password returns 204 for known and unknown emails', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: signupDto.email })
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: `unknown-${Date.now()}@example.com` })
+        .expect(204);
+    });
+
+    it('resets password and issues tokens', async () => {
+      const email = `reset-flow-${Date.now()}@example.com`;
+      const oldPassword = 'OldP@ssw0rd!';
+      const newPassword = 'NewP@ssw0rd!';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          firstName: 'Reset',
+          lastName: 'User',
+          email,
+          password: oldPassword,
+        })
+        .expect(201);
+
+      await verifyUserEmail(app, email);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email })
+        .expect(204);
+
+      const token = await getLatestPasswordResetToken();
+      expect(token).toBeTruthy();
+
+      const resetRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token, password: newPassword })
+        .expect(200);
+
+      expect(resetRes.body.message).toBe('Password reset successfully');
+      expect(resetRes.body.data).toEqual({
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: newPassword })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: oldPassword })
+        .expect(401);
+    });
+
+    it('POST /auth/reset-password returns 401 for invalid token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({
+          token: '00000000-0000-4000-8000-000000000099',
+          password: 'N3wP@ssw0rd!',
+        })
+        .expect(401);
+
+      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
+        statusCode: 401,
+        message: 'Invalid or expired password reset token',
+        path: '/api/v1/auth/reset-password',
+        error: 'Unauthorized',
+      });
     });
   });
 });

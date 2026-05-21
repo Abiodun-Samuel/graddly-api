@@ -16,6 +16,11 @@ export class RedisService implements OnModuleDestroy {
     });
   }
 
+  /** Native client for connect-redis and other libraries that expect ioredis. */
+  getClient(): Redis {
+    return this.client;
+  }
+
   get(key: string): Promise<string | null> {
     return this.client.get(key);
   }
@@ -30,6 +35,10 @@ export class RedisService implements OnModuleDestroy {
 
   async del(key: string): Promise<void> {
     await this.client.del(key);
+  }
+
+  async incr(key: string): Promise<number> {
+    return this.client.incr(key);
   }
 
   async flushAll(): Promise<void> {

@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -108,6 +108,16 @@ describe('JwtStrategy', () => {
       ...baseUser,
       isActive: false,
     });
+
+    await expect(
+      strategy.validate({ sub: 'user-1', email: 'a@example.com' }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('throws Unauthorized when user is not found (e.g. hidden by RLS)', async () => {
+    mockUsersService.findById.mockRejectedValue(
+      new NotFoundException('User not found'),
+    );
 
     await expect(
       strategy.validate({ sub: 'user-1', email: 'a@example.com' }),
