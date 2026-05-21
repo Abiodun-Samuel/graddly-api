@@ -1,0 +1,215 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+
+import { EmailService } from '../email/email.service.js';
+import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
+import { Organisation } from '../organisations/entities/organisation.entity.js';
+import { OrganisationRole } from '../organisations/organisation-role.enum.js';
+import { RedisService } from '../redis/redis.service.js';
+import { User } from '../users/entities/user.entity.js';
+
+import { Invitation } from './entities/invitation.entity.js';
+import { InvitationsService } from './invitations.service.js';
+
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
+
+function baseUser(
+  overrides: Partial<AuthenticatedUser> = {},
+): AuthenticatedUser {
+  return {
+    id: 'user-1',
+    firstName: 'A',
+    lastName: 'B',
+    email: 'invitee@example.com',
+    password: 'x',
+    isEmailVerified: true,
+    isActive: true,
+    avatarUrl: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as AuthenticatedUser;
+}
+
+describe('InvitationsService', () => {
+  let service: InvitationsService;
+  const redis = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    getClient: jest.fn(() => ({
+      scan: jest.fn().mockResolvedValue(['0', []]),
+    })),
+  };
+  const emailService = { sendEmail: jest.fn() };
+  const config = {
+    get: jest.fn((_k: string, def?: number) => def ?? 604_800),
+  };
+
+  let invitationRepo: {
+    findOne: jest.Mock;
+    findAndCount: jest.Mock;
+    save: jest.Mock;
+    create: jest.Mock;
+    softRemove: jest.Mock;
+    manager: { transaction: jest.Mock };
+  };
+  let membershipRepo: { findOne: jest.Mock; createQueryBuilder: jest.Mock };
+  let organisationRepo: { findOne: jest.Mock };
+  let userRepo: { createQueryBuilder: jest.Mock };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const transactionMembershipRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const transactionInvitationRepo = {
+      softRemove: jest.fn(),
+    };
+
+    invitationRepo = {
+      findOne: jest.fn(),
+      findAndCount: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn().mockImplementation((x: Partial<Invitation>) => ({
+        id: 'inv-1',
+        ...x,
+      })),
+      softRemove: jest.fn(),
+      manager: {
+        transaction: jest.fn(async (fn: (m: unknown) => Promise<void>) => {
+          await fn({
+            getRepository: (entity: unknown) => {
+              if (entity === OrganisationMembership) {
+                return transactionMembershipRepo;
+              }
+              if (entity === Invitation) {
+                return transactionInvitationRepo;
+              }
+              throw new Error('unexpected entity');
+            },
+          });
+        }),
+      },
+    };
+
+    membershipRepo = {
+      findOne: jest.fn(),
+      createQueryBuilder: jest.fn(() => ({
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      })),
+    };
+
+    organisationRepo = { findOne: jest.fn() };
+
+    userRepo = {
+      createQueryBuilder: jest.fn(() => ({
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      })),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        InvitationsService,
+        { provide: ConfigService, useValue: config },
+        { provide: RedisService, useValue: redis },
+        { provide: EmailService, useValue: emailService },
+        { provide: getRepositoryToken(Invitation), useValue: invitationRepo },
+        {
+          provide: getRepositoryToken(OrganisationMembership),
+          useValue: membershipRepo,
+        },
+        {
+          provide: getRepositoryToken(Organisation),
+          useValue: organisationRepo,
+        },
+        { provide: getRepositoryToken(User), useValue: userRepo },
+      ],
+    }).compile();
+
+    service = module.get(InvitationsService);
+  });
+
+  describe('accept', () => {
+    it('throws when token not in redis', async () => {
+      redis.get.mockResolvedValue(null);
+      await expect(
+        service.accept(baseUser(), {
+          token: '00000000-0000-4000-8000-000000000001',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws when invitation email does not match user', async () => {
+      redis.get.mockResolvedValue('inv-1');
+      invitationRepo.findOne.mockResolvedValue({
+        id: 'inv-1',
+        isDeleted: false,
+        email: 'other@example.com',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        organisation: { id: 'org-1' },
+        organisationId: 'org-1',
+        role: OrganisationRole.MEMBER,
+      });
+      await expect(
+        service.accept(baseUser(), {
+          token: '00000000-0000-4000-8000-000000000001',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws when already a member', async () => {
+      redis.get.mockResolvedValue('inv-1');
+      invitationRepo.findOne.mockResolvedValue({
+        id: 'inv-1',
+        isDeleted: false,
+        email: 'invitee@example.com',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        organisation: { id: 'org-1' },
+        organisationId: 'org-1',
+        role: OrganisationRole.MEMBER,
+      });
+      membershipRepo.findOne.mockResolvedValue({ id: 'm1' });
+      await expect(
+        service.accept(baseUser(), {
+          token: '00000000-0000-4000-8000-000000000001',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('list', () => {
+    it('returns paginated rows', async () => {
+      const row = {
+        id: 'inv-1',
+        email: 'x@y.com',
+        role: OrganisationRole.MEMBER,
+        expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        invitedBy: null,
+      };
+      invitationRepo.findAndCount.mockResolvedValue([[row], 1]);
+      const res = await service.list(baseUser({ organisationId: 'org-1' }), {
+        page: 1,
+        perPage: 20,
+      });
+      expect(res.items).toHaveLength(1);
+      expect(res.meta).toMatchObject({ total: 1, page: 1, perPage: 20 });
+    });
+  });
+});

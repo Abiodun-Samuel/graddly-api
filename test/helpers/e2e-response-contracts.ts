@@ -22,6 +22,35 @@ export function expectSuccessEnvelope(body: unknown): asserts body is {
   );
 }
 
+/** Paginated list from ResponseInterceptor + {@link PaginatedResult} */
+export function expectPaginatedListEnvelope(body: unknown): asserts body is {
+  message: string;
+  data: unknown[];
+  meta: {
+    total: number;
+    page: number;
+    perPage: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+} {
+  expect(body).toEqual(
+    expect.objectContaining({
+      message: expect.any(String),
+      data: expect.any(Array),
+      meta: expect.objectContaining({
+        total: expect.any(Number),
+        page: expect.any(Number),
+        perPage: expect.any(Number),
+        totalPages: expect.any(Number),
+        hasNextPage: expect.any(Boolean),
+        hasPreviousPage: expect.any(Boolean),
+      }),
+    }),
+  );
+}
+
 /** Organisation JSON as returned by TypeORM serialization (dates as ISO strings). */
 export function expectOrganisationResource(data: unknown): void {
   // Use objectContaining so nullable contact fields (address, city, etc.) are

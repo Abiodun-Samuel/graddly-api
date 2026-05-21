@@ -9,17 +9,18 @@ import './instrument.js';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import basicAuth from 'express-basic-auth';
-import helmet from 'helmet';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import { AppModule } from './app.module.js';
 import { configureApp } from './configure-app.js';
+import { configureHelmet } from './configure-helmet.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
-  app.use(helmet());
+  configureHelmet(app);
   configureApp(app);
 
   const config = app.get(ConfigService);
@@ -49,8 +50,13 @@ async function bootstrap() {
     })
     .build();
 
-  SwaggerModule.setup('docs', app, () =>
-    SwaggerModule.createDocument(app, swaggerConfig),
+  const openApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
+
+  app.use(
+    '/docs',
+    apiReference({
+      content: openApiDocument,
+    }),
   );
 
   await app.listen(port);

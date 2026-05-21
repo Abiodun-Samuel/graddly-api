@@ -11,6 +11,7 @@ const BOOTSTRAP_AUTH_POST_SUFFIXES = [
   '/auth/reset-password',
   '/auth/verify-email',
   '/auth/resend-verification',
+  '/invitations/accept',
 ] as const;
 
 const BOOTSTRAP_AUTH_GET_SUFFIXES = ['/auth/oidc/callback'] as const;

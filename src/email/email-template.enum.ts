@@ -2,4 +2,5 @@
 export enum EmailTemplate {
   PASSWORD_RESET = 'password-reset',
   EMAIL_VERIFICATION = 'email-verification',
+  INVITATION_ACCEPT = 'invitation-accept',
 }

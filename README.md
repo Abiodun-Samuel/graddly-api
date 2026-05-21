@@ -25,6 +25,13 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Prerequisites
+
+- **Node.js 22+** (required by `@scalar/nestjs-api-reference`). With [nvm](https://github.com/nvm-sh/nvm): `nvm install` (reads `.nvmrc`), then `nvm use`.
+- After switching Node versions, reinstall native deps: `rm -rf node_modules && yarn install`.
+
+Docker and CI already target Node 22 (`Dockerfile`, `.github/workflows/ci.yml`).
+
 ## Project setup
 
 ```bash

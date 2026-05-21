@@ -33,6 +33,12 @@ describe('isRlsBootstrapRequest', () => {
     ).toBe(true);
   });
 
+  it('matches invitation accept POST route', () => {
+    expect(
+      isRlsBootstrapRequest(makeRequest('POST', '/api/v1/invitations/accept')),
+    ).toBe(true);
+  });
+
   it('does not match authenticated routes', () => {
     expect(isRlsBootstrapRequest(makeRequest('GET', '/api/v1/auth/me'))).toBe(
       false,
