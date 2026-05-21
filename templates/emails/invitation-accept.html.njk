@@ -1,0 +1,10 @@
+{% extends "layouts/base.html.njk" %}
+
+{% block title %}Invitation to {{ organisationName }}{% endblock %}
+
+{% block content %}
+<p>Hi {{ firstName }},</p>
+<p>You have been invited to join <strong>{{ organisationName }}</strong> on {{ appName }}.</p>
+<p><a href="{{ acceptUrl }}">Accept invitation</a></p>
+<p>This link expires in {{ expiresInLabel }}. If you were not expecting this, you can ignore this email.</p>
+{% endblock %}

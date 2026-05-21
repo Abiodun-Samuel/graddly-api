@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, RelationId } from 'typeorm';
 
 import { BaseEntity } from '../../common/entities/base.entity.js';
 import { Organisation } from '../../organisations/entities/organisation.entity.js';
@@ -20,6 +20,10 @@ export class Invitation extends BaseEntity {
   @ManyToOne(() => Organisation, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'organisationId' })
   organisation!: Organisation;
+
+  /** FK column; use this when the invitee cannot load `organisation` under RLS. */
+  @RelationId((i: Invitation) => i.organisation)
+  organisationId!: string;
 
   @Column({ type: 'timestamptz' })
   expiresAt!: Date;

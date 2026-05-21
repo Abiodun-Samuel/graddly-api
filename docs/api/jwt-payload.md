@@ -42,4 +42,4 @@ This lets clients switch tenant context **without** issuing a new access token (
 
 ## Bearer auth in OpenAPI
 
-See Swagger UI (**/docs**) bearer auth description for the short summary.
+See the API reference (**/docs**) bearer auth description for the short summary.

@@ -7,7 +7,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Item | Variable | Notes |
 |------|-----------|--------|
 | JWT signing key | `JWT_SECRET` | Min **32** characters. Never use `change-me-in-production`. Rotate if leaked. |
-| Swagger UI basic auth | `SWAGGER_PASSWORD` | Min **12** characters when `NODE_ENV` is `production` or `staging`. |
+| API docs (Scalar) basic auth | `SWAGGER_PASSWORD` | Min **12** characters when `NODE_ENV` is `production` or `staging`. Protects **/docs**. |
 | Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. See [database-setup.md](./database-setup.md) for migrator vs app roles and RLS. |
 | Redis | `REDIS_HOST`, `REDIS_PORT` | TLS and auth if exposed beyond the private network. |
 
@@ -28,6 +28,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | From address | `RESEND_FROM_EMAIL` | Must use a verified domain (e.g. `Graddly <noreply@yourdomain.com>`). |
 | Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (see [password-reset.md](./password-reset.md), [email-verification.md](./email-verification.md)). |
 | Verification TTL | `EMAIL_VERIFICATION_TOKEN_TTL_SECONDS` | Optional; default 24 hours. |
+| Invitation accept token cap | `INVITATION_ACCEPT_TOKEN_TTL_SECONDS` | Optional; default 7 days; Redis TTL is clamped to invite `expiresAt`. See [invitations.md](./invitations.md). |
 | JWT access TTL | `JWT_ACCESS_EXPIRES_IN` | Default `15m`. See [auth-tokens.md](./auth-tokens.md). |
 | JWT refresh TTL | `JWT_REFRESH_EXPIRES_IN` | Default `7d`. |
 | Refresh reuse grace | `REFRESH_REUSE_GRACE_SECONDS` | Tombstone window after rotation (default `30`). |

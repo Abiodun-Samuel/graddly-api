@@ -1,5 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+import { ensureRlsHelperFunctions } from './helpers/ensure-rls-helper-functions.js';
+
 export class CreateInvitationsTable1779263063906 implements MigrationInterface {
   name = 'CreateInvitationsTable1779263063906';
 
@@ -32,12 +34,14 @@ export class CreateInvitationsTable1779263063906 implements MigrationInterface {
       `CREATE UNIQUE INDEX "UQ_invitations_active_org_email" ON "invitations" ("organisationId", lower("email")) WHERE "isDeleted" = false`,
     );
 
+    await ensureRlsHelperFunctions(queryRunner);
+
     await queryRunner.query(`
 CREATE POLICY invitations_select ON invitations
   FOR SELECT
   USING (
     app_rls_bootstrap()
-    OR app_user_member_of_org("organisationId")
+    OR app_user_member_of_org("organisationId"::uuid)
   )`);
 
     await queryRunner.query(`
@@ -46,7 +50,7 @@ CREATE POLICY invitations_insert ON invitations
   WITH CHECK (
     app_rls_bootstrap()
     OR (
-      app_user_member_of_org("organisationId")
+      app_user_member_of_org("organisationId"::uuid)
       AND "invitedByUserId" = app_current_user()
     )
   )`);

@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable, map } from 'rxjs';
 
 import { IApiResponse } from '../interfaces/api-response.interface';
+import { PaginatedResult } from '../pagination/paginated-result.js';
 
 import { RESPONSE_MESSAGE_KEY } from './response-message.decorator';
 
@@ -26,6 +27,17 @@ export class ResponseInterceptor<T> implements NestInterceptor<
       this.reflector.get<string>(RESPONSE_MESSAGE_KEY, context.getHandler()) ??
       'Success';
 
-    return next.handle().pipe(map((data) => ({ message, data })));
+    return next.handle().pipe(
+      map((data) => {
+        if (data instanceof PaginatedResult) {
+          return {
+            message,
+            data: data.items as T,
+            meta: data.meta,
+          };
+        }
+        return { message, data };
+      }),
+    );
   }
 }

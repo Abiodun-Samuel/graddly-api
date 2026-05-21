@@ -1,5 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+import { ensureRlsHelperFunctions } from './helpers/ensure-rls-helper-functions.js';
+
 /**
  * Postgres RLS on PII / tenant tables (Phase C / ADR 0001).
  *
@@ -13,62 +15,7 @@ export class EnableRowLevelSecurityOnPiiTables1777300000000 implements Migration
   name = 'EnableRowLevelSecurityOnPiiTables1777300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-CREATE OR REPLACE FUNCTION app_current_org()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT NULLIF(current_setting('app.current_org', true), '')::uuid;
-$$`);
-
-    await queryRunner.query(`
-CREATE OR REPLACE FUNCTION app_current_user()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT NULLIF(current_setting('app.current_user', true), '')::uuid;
-$$`);
-
-    await queryRunner.query(`
-CREATE OR REPLACE FUNCTION app_rls_bootstrap()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT current_setting('app.rls_bootstrap', true) = '1';
-$$`);
-
-    await queryRunner.query(`
-CREATE OR REPLACE FUNCTION app_user_in_current_org(p_user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM organisation_memberships m
-    WHERE m."userId" = p_user_id
-      AND m."organisationId" = app_current_org()
-      AND m."isDeleted" = false
-  );
-$$`);
-
-    await queryRunner.query(`
-CREATE OR REPLACE FUNCTION app_user_member_of_org(p_org_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM organisation_memberships m
-    WHERE m."organisationId" = p_org_id
-      AND m."userId" = app_current_user()
-      AND m."isDeleted" = false
-  );
-$$`);
+    await ensureRlsHelperFunctions(queryRunner);
 
     // --- organisations ---
     await queryRunner.query(`

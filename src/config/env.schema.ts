@@ -96,6 +96,12 @@ export const envSchema = z
       .max(172_800)
       .default(86_400),
     FRONTEND_BASE_URL: z.string().url().optional(),
+    INVITATION_ACCEPT_TOKEN_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(300)
+      .max(604_800)
+      .default(604_800),
   })
   .superRefine((data, ctx) => {
     const deployed =

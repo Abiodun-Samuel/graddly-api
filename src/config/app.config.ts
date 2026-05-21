@@ -86,5 +86,8 @@ export default registerAs('app', () => {
     emailVerification: {
       tokenTtlSeconds: e.EMAIL_VERIFICATION_TOKEN_TTL_SECONDS,
     },
+    invitationAccept: {
+      tokenTtlSeconds: e.INVITATION_ACCEPT_TOKEN_TTL_SECONDS,
+    },
   };
 });
