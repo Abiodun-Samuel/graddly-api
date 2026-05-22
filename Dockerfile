@@ -25,6 +25,7 @@ WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+COPY templates ./templates
 
 ENV NODE_ENV=production
 EXPOSE 3000
