@@ -25,7 +25,10 @@ export class UserResponseDto {
   @ApiProperty({ example: true })
   isActive!: boolean;
 
-  @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg', nullable: true })
+  @ApiPropertyOptional({
+    example: 'https://example.com/avatar.jpg',
+    nullable: true,
+  })
   avatarUrl!: string | null;
 
   @ApiPropertyOptional({ example: '+44 7700 900123', nullable: true })
@@ -43,7 +46,10 @@ export class UserResponseDto {
   @ApiPropertyOptional({ example: 'People & Development', nullable: true })
   department!: string | null;
 
-  @ApiPropertyOptional({ example: 'Specialist in adult care workforce development.', nullable: true })
+  @ApiPropertyOptional({
+    example: 'Specialist in adult care workforce development.',
+    nullable: true,
+  })
   bio!: string | null;
 
   @ApiProperty({ example: 'en-GB' })

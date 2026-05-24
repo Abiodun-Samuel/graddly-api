@@ -4,8 +4,8 @@ import { formatTokenTtlLabel } from '../format-token-ttl-label.js';
 
 import { BaseEmailPayload } from './base-email.payload.js';
 
-import type { ConfigService } from '@nestjs/config';
 import type { PortalType } from '../../organisations/portal-type.enum.js';
+import type { ConfigService } from '@nestjs/config';
 
 export interface IPasswordResetEmailParams {
   to: string;
@@ -34,7 +34,6 @@ export class PasswordResetEmail extends BaseEmailPayload {
     config: ConfigService,
     params: IPasswordResetEmailParams,
   ): PasswordResetEmail {
-
     const frontendBase = resolvePortalFrontendUrl(config, params.portalType);
     const ttlSeconds = config.get<number>(
       'app.passwordReset.tokenTtlSeconds',

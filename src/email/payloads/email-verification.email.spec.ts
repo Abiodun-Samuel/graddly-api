@@ -9,10 +9,7 @@ describe('EmailVerificationEmail', () => {
   const config = {
     get: (key: string, fallback?: unknown) => {
       const values = new Map<string, unknown>([
-        [
-          'app.frontend.portalUrls',
-          { employer: 'https://app.example.com' },
-        ],
+        ['app.frontend.portalUrls', { employer: 'https://app.example.com' }],
         ['app.emailVerification.tokenTtlSeconds', 86_400],
       ]);
       return values.get(key) ?? fallback;

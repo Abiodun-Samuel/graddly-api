@@ -39,13 +39,19 @@ export class UpdateProfileDto {
   @MaxLength(20)
   phone?: string;
 
-  @ApiPropertyOptional({ example: '1990-06-15', description: 'ISO 8601 date (YYYY-MM-DD)' })
+  @ApiPropertyOptional({
+    example: '1990-06-15',
+    description: 'ISO 8601 date (YYYY-MM-DD)',
+  })
   @IsOptional()
   @Type(() => Date)
   @IsDate()
   dateOfBirth?: Date;
 
-  @ApiPropertyOptional({ enum: UserGender, example: UserGender.PREFER_NOT_TO_SAY })
+  @ApiPropertyOptional({
+    enum: UserGender,
+    example: UserGender.PREFER_NOT_TO_SAY,
+  })
   @IsOptional()
   @IsEnum(UserGender)
   gender?: UserGender;
@@ -62,13 +68,19 @@ export class UpdateProfileDto {
   @MaxLength(100)
   department?: string;
 
-  @ApiPropertyOptional({ example: 'Specialist in adult care workforce development.', maxLength: 500 })
+  @ApiPropertyOptional({
+    example: 'Specialist in adult care workforce development.',
+    maxLength: 500,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   bio?: string;
 
-  @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg', nullable: true })
+  @ApiPropertyOptional({
+    example: 'https://example.com/avatar.jpg',
+    nullable: true,
+  })
   @IsOptional()
   @IsUrl()
   avatarUrl?: string | null;

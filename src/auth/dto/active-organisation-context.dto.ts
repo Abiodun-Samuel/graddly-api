@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { MembershipStatus } from '../../organisations/membership-status.enum.js';
 import { OrganisationSummaryDto } from '../../organisations/dto/organisation-response.dto.js';
+import { MembershipStatus } from '../../organisations/membership-status.enum.js';
 
 export class ActiveOrganisationMeDto {
   @ApiProperty({

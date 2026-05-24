@@ -72,7 +72,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     @InjectRepository(OrganisationMembership)
     private readonly membershipRepo: Repository<OrganisationMembership>,
-  ) { }
+  ) {}
 
   async signup(dto: SignupDto, portalType?: PortalType): Promise<void> {
     const user = await this.usersService.create(dto);
@@ -359,9 +359,9 @@ export class AuthService {
       email: user.email,
       ...(membership?.organisation
         ? {
-          orgId: membership.organisation.id,
-          roles: [membership.role],
-        }
+            orgId: membership.organisation.id,
+            roles: [membership.role],
+          }
         : {}),
     };
 

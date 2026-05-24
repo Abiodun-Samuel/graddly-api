@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { PortalType } from '../organisations/portal-type.enum.js';
+
 import { EmailLayoutContextService } from './email-layout-context.service.js';
 import { EmailTemplateRendererService } from './email-template-renderer.service.js';
 import { PasswordResetEmail } from './payloads/password-reset.email.js';

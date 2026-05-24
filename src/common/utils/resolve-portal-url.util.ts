@@ -1,6 +1,5 @@
-import type { ConfigService } from '@nestjs/config';
-
 import type { PortalType } from '../../organisations/portal-type.enum.js';
+import type { ConfigService } from '@nestjs/config';
 
 /**
  * Returns the frontend base URL for the given portalType.
@@ -12,7 +11,6 @@ export function resolvePortalFrontendUrl(
   config: ConfigService,
   portalType?: PortalType,
 ): string {
-
   if (!portalType) return '';
 
   const portalUrls = config.get<Record<string, string | undefined>>(

@@ -19,7 +19,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async create(data: {
     firstName: string;
@@ -87,8 +87,10 @@ export class UsersService {
     if (dto.phone !== undefined) user.phone = dto.phone?.trim() || null;
     if (dto.dateOfBirth !== undefined) user.dateOfBirth = dto.dateOfBirth;
     if (dto.gender !== undefined) user.gender = dto.gender;
-    if (dto.jobTitle !== undefined) user.jobTitle = dto.jobTitle?.trim() || null;
-    if (dto.department !== undefined) user.department = dto.department?.trim() || null;
+    if (dto.jobTitle !== undefined)
+      user.jobTitle = dto.jobTitle?.trim() || null;
+    if (dto.department !== undefined)
+      user.department = dto.department?.trim() || null;
     if (dto.bio !== undefined) user.bio = dto.bio?.trim() || null;
     if (dto.avatarUrl !== undefined) user.avatarUrl = dto.avatarUrl ?? null;
     if (dto.locale !== undefined) user.locale = dto.locale;

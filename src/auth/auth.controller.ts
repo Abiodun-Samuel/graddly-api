@@ -77,7 +77,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
-  ) { }
+  ) {}
 
   @Post('signup')
   @Throttle({ default: { limit: 0 }, auth: { ttl: 60_000, limit: 5 } })
@@ -181,7 +181,6 @@ export class AuthController {
     @Body() dto: ForgotPasswordDto,
     @Headers(PORTAL_TYPE_HEADER) rawPortalType?: string,
   ): Promise<void> {
-
     await this.authService.requestPasswordReset(
       dto.email,
       parsePortalType(rawPortalType),
@@ -441,14 +440,14 @@ export class AuthController {
       this.usersService.updateProfile(user.id, dto),
       portalType
         ? this.authService
-          .resolveActiveOrganisationForUser(user.id, portalType)
-          .catch((err) => {
-            this.logger.error(
-              'Failed to resolve active organisation after profile update',
-              err,
-            );
-            return null;
-          })
+            .resolveActiveOrganisationForUser(user.id, portalType)
+            .catch((err) => {
+              this.logger.error(
+                'Failed to resolve active organisation after profile update',
+                err,
+              );
+              return null;
+            })
         : Promise.resolve(null),
     ]);
 

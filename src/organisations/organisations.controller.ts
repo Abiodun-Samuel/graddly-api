@@ -52,7 +52,7 @@ import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.in
   type: ErrorResponseDto,
 })
 export class OrganisationsController {
-  constructor(private readonly organisationsService: OrganisationsService) { }
+  constructor(private readonly organisationsService: OrganisationsService) {}
 
   @Post()
   @ResponseMessage('Organisation created successfully')

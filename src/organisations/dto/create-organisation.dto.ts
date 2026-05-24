@@ -14,7 +14,11 @@ import {
 import { PortalType } from '../portal-type.enum.js';
 
 export class CreateOrganisationDto {
-  @ApiProperty({ example: 'Northstar Training Ltd', minLength: 2, maxLength: 200 })
+  @ApiProperty({
+    example: 'Northstar Training Ltd',
+    minLength: 2,
+    maxLength: 200,
+  })
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(200)
@@ -57,7 +61,10 @@ export class CreateOrganisationDto {
   @MaxLength(20)
   orgPhone?: string;
 
-  @ApiPropertyOptional({ example: 'https://northstar-training.co.uk', maxLength: 500 })
+  @ApiPropertyOptional({
+    example: 'https://northstar-training.co.uk',
+    maxLength: 500,
+  })
   @IsOptional()
   @IsUrl({}, { message: 'Enter a valid URL (including https://)' })
   website?: string;

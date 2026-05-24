@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddOrganisationPortalType1777600000000
-  implements MigrationInterface
-{
+export class AddOrganisationPortalType1777600000000 implements MigrationInterface {
   name = 'AddOrganisationPortalType1777600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -18,9 +16,7 @@ export class AddOrganisationPortalType1777600000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_organisations_portalType"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_organisations_portalType"`);
     await queryRunner.query(
       `ALTER TABLE "organisations" DROP COLUMN "portalType"`,
     );

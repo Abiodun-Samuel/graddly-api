@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddMembershipStatusJoinedAtAndOrgType1777300000000
-  implements MigrationInterface
-{
+export class AddMembershipStatusJoinedAtAndOrgType1777300000000 implements MigrationInterface {
   name = 'AddMembershipStatusJoinedAtAndOrgType1777300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -24,12 +22,8 @@ export class AddMembershipStatusJoinedAtAndOrgType1777300000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_organisation_memberships_userId"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "organisations" DROP COLUMN "type"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_organisation_memberships_userId"`);
+    await queryRunner.query(`ALTER TABLE "organisations" DROP COLUMN "type"`);
     await queryRunner.query(
       `ALTER TABLE "organisation_memberships" DROP COLUMN "joinedAt"`,
     );

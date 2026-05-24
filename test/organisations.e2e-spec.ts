@@ -106,7 +106,13 @@ describe('OrganisationsController (e2e)', () => {
     it('POST /organisations auto-creates an owner membership for the creator', async () => {
       const dataSource = app.get(DataSource);
       const rows = await dataSource.query<
-        { role: string; status: string; isDeleted: boolean; userId: string; organisationId: string }[]
+        {
+          role: string;
+          status: string;
+          isDeleted: boolean;
+          userId: string;
+          organisationId: string;
+        }[]
       >(
         `SELECT role, status, "isDeleted", "userId", "organisationId" FROM organisation_memberships WHERE "organisationId" = $1`,
         [organisationId],
@@ -141,7 +147,7 @@ describe('OrganisationsController (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/organisations')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'X', ukprn: '123' })  // name too short, ukprn wrong format
+        .send({ name: 'X', ukprn: '123' }) // name too short, ukprn wrong format
         .expect(422);
 
       expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
@@ -167,9 +173,15 @@ describe('OrganisationsController (e2e)', () => {
         expectOrganisationResource(row);
       }
 
-      const ours = (list as { id: string }[]).find((o) => o.id === organisationId);
+      const ours = (list as { id: string }[]).find(
+        (o) => o.id === organisationId,
+      );
       expect(ours).toEqual(
-        expect.objectContaining({ id: organisationId, name: 'Test Trust', slug: 'test-trust' }),
+        expect.objectContaining({
+          id: organisationId,
+          name: 'Test Trust',
+          slug: 'test-trust',
+        }),
       );
     });
 
@@ -183,7 +195,11 @@ describe('OrganisationsController (e2e)', () => {
       expect(res.body.message).toBe('Organisation retrieved successfully');
       expectOrganisationResource(res.body.data);
       expect(res.body.data).toEqual(
-        expect.objectContaining({ id: organisationId, name: 'Test Trust', slug: 'test-trust' }),
+        expect.objectContaining({
+          id: organisationId,
+          name: 'Test Trust',
+          slug: 'test-trust',
+        }),
       );
     });
 
@@ -201,7 +217,7 @@ describe('OrganisationsController (e2e)', () => {
         expect.objectContaining({
           id: organisationId,
           name: 'Updated Trust',
-          slug: 'test-trust',  // slug is immutable after creation
+          slug: 'test-trust', // slug is immutable after creation
           city: 'Manchester',
         }),
       );

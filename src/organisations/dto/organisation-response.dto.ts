@@ -34,13 +34,19 @@ export class OrganisationSummaryDto {
   @ApiPropertyOptional({ example: 'United Kingdom', nullable: true })
   country!: string | null;
 
-  @ApiPropertyOptional({ example: 'info@northstar-training.co.uk', nullable: true })
+  @ApiPropertyOptional({
+    example: 'info@northstar-training.co.uk',
+    nullable: true,
+  })
   orgEmail!: string | null;
 
   @ApiPropertyOptional({ example: '+44 20 7946 0958', nullable: true })
   orgPhone!: string | null;
 
-  @ApiPropertyOptional({ example: 'https://northstar-training.co.uk', nullable: true })
+  @ApiPropertyOptional({
+    example: 'https://northstar-training.co.uk',
+    nullable: true,
+  })
   website!: string | null;
 }
 
@@ -76,13 +82,19 @@ export class OrganisationResponseDto {
   @ApiPropertyOptional({ example: 'United Kingdom', nullable: true })
   country!: string | null;
 
-  @ApiPropertyOptional({ example: 'info@northstar-training.co.uk', nullable: true })
+  @ApiPropertyOptional({
+    example: 'info@northstar-training.co.uk',
+    nullable: true,
+  })
   orgEmail!: string | null;
 
   @ApiPropertyOptional({ example: '+44 20 7946 0958', nullable: true })
   orgPhone!: string | null;
 
-  @ApiPropertyOptional({ example: 'https://northstar-training.co.uk', nullable: true })
+  @ApiPropertyOptional({
+    example: 'https://northstar-training.co.uk',
+    nullable: true,
+  })
   website!: string | null;
 
   @ApiProperty()

@@ -158,7 +158,6 @@ export const envSchema = z
           path: ['RESEND_FROM_EMAIL'],
         });
       }
-
     }
 
     if (data.OIDC_ENABLED && deployed) {

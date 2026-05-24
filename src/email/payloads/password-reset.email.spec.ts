@@ -9,10 +9,7 @@ describe('PasswordResetEmail', () => {
   const config = {
     get: (key: string, fallback?: unknown) => {
       const values = new Map<string, unknown>([
-        [
-          'app.frontend.portalUrls',
-          { employer: 'https://app.example.com' },
-        ],
+        ['app.frontend.portalUrls', { employer: 'https://app.example.com' }],
         ['app.passwordReset.tokenTtlSeconds', 7200],
       ]);
       return values.get(key) ?? fallback;

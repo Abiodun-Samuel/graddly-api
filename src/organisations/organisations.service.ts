@@ -34,7 +34,7 @@ export class OrganisationsService {
     @InjectRepository(Organisation)
     private readonly organisationsRepository: Repository<Organisation>,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   private async generateUniqueSlug(base: string): Promise<string> {
     const slug = toSlug(base);

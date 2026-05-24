@@ -4,8 +4,8 @@ import { formatTokenTtlLabel } from '../format-token-ttl-label.js';
 
 import { BaseEmailPayload } from './base-email.payload.js';
 
-import type { ConfigService } from '@nestjs/config';
 import type { PortalType } from '../../organisations/portal-type.enum.js';
+import type { ConfigService } from '@nestjs/config';
 
 export interface IEmailVerificationEmailParams {
   to: string;

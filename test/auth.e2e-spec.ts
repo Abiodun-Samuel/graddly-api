@@ -643,9 +643,13 @@ describe('AuthController (e2e)', () => {
         .set('X-Portal-Type', 'provider')
         .expect(200);
 
-      expect(res.body.data.activeOrganisation.organisation.id).toBe(providerOrgId);
+      expect(res.body.data.activeOrganisation.organisation.id).toBe(
+        providerOrgId,
+      );
       expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('provider');
+      expect(res.body.data.activeOrganisation.organisation.portalType).toBe(
+        'provider',
+      );
     });
 
     it('scopes activeOrganisation to employer portal when X-Portal-Type: employer', async () => {
@@ -655,9 +659,13 @@ describe('AuthController (e2e)', () => {
         .set('X-Portal-Type', 'employer')
         .expect(200);
 
-      expect(res.body.data.activeOrganisation.organisation.id).toBe(employerOrgId);
+      expect(res.body.data.activeOrganisation.organisation.id).toBe(
+        employerOrgId,
+      );
       expect(res.body.data.activeOrganisation.membershipStatus).toBe('active');
-      expect(res.body.data.activeOrganisation.organisation.portalType).toBe('employer');
+      expect(res.body.data.activeOrganisation.organisation.portalType).toBe(
+        'employer',
+      );
     });
 
     it('returns activeOrganisation: null when portal type has no matching membership', async () => {
@@ -687,7 +695,10 @@ describe('AuthController (e2e)', () => {
         .set('X-Portal-Type', 'provider')
         .expect(200);
 
-      const org = res.body.data.activeOrganisation.organisation as Record<string, unknown>;
+      const org = res.body.data.activeOrganisation.organisation as Record<
+        string,
+        unknown
+      >;
       const allowedKeys = [
         'id',
         'name',
