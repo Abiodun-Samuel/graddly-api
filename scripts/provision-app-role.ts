@@ -69,12 +69,10 @@ async function main(): Promise<void> {
       await client.query(
         `CREATE ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD ${password} NOSUPERUSER NOBYPASSRLS`,
       );
-      console.log(`Created role "${appRole}".`);
     } else {
       await client.query(
         `ALTER ROLE ${quoteIdent(appRole)} WITH LOGIN PASSWORD ${password} NOSUPERUSER NOBYPASSRLS`,
       );
-      console.log(`Updated role "${appRole}" (password refreshed).`);
     }
 
     const role = quoteIdent(appRole);
@@ -119,9 +117,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE ${migrator} IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE ${migrator} IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO ${role}`);
 
-    console.log(
-      `Granted privileges to "${appRole}" on database "${database}".`,
-    );
   } finally {
     await client.end();
   }

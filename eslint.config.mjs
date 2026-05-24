@@ -61,6 +61,7 @@ export default defineConfig(
         {
           selector: 'variable',
           format: ['camelCase', 'UPPER_CASE', 'PascalCase'],
+          leadingUnderscore: 'allow',
         },
         {
           selector: 'function',

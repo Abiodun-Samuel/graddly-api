@@ -1,72 +1,86 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { OrganisationMembership } from './entities/organisation-membership.entity.js';
 import { Organisation } from './entities/organisation.entity.js';
+import { MembershipStatus } from './membership-status.enum.js';
 import { OrganisationRole } from './organisation-role.enum.js';
 import { OrganisationsService } from './organisations.service.js';
+
+const baseOrgDto = {
+  name: 'Acme Trust',
+  ukprn: '10012345',
+  address: '1 Training Lane',
+  city: 'London',
+  postcode: 'SW1A 1AA',
+  country: 'United Kingdom',
+  orgEmail: 'info@acme.co.uk',
+} as const;
 
 describe('OrganisationsService', () => {
   let service: OrganisationsService;
   let repository: jest.Mocked<
-    Pick<
-      Repository<Organisation>,
-      'create' | 'save' | 'find' | 'findOne' | 'softRemove' | 'manager'
-    >
+    Pick<Repository<Organisation>, 'find' | 'findOne' | 'save' | 'softRemove'> & {
+      createQueryBuilder: jest.Mock;
+    }
   >;
   let membershipRepository: jest.Mocked<
-    Pick<Repository<OrganisationMembership>, 'create' | 'save'>
+    Pick<Repository<OrganisationMembership>, 'create' | 'save' | 'findOne'>
   >;
-  let transactionQuery: jest.Mock;
-  let transactionMock: jest.Mock;
-  let transactionMembershipRepo: {
-    create: jest.Mock;
-    save: jest.Mock;
+  let mockManager: jest.Mocked<Pick<EntityManager, 'create' | 'save'>>;
+  let mockDataSource: { transaction: jest.Mock };
+  let mockQueryBuilder: {
+    select: jest.Mock;
+    where: jest.Mock;
+    getMany: jest.Mock;
   };
 
   beforeEach(async () => {
-    transactionQuery = jest.fn().mockResolvedValue(undefined);
-    transactionMembershipRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
+    mockQueryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
     };
-    transactionMock = jest.fn(
-      async (work: (manager: unknown) => Promise<void>) => {
-        await work({
-          query: transactionQuery,
-          getRepository: () => transactionMembershipRepo,
-        });
-      },
-    );
 
     repository = {
-      create: jest.fn(),
-      save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      save: jest.fn(),
       softRemove: jest.fn(),
-      manager: {
-        transaction: transactionMock,
-      } as unknown as Repository<Organisation>['manager'],
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
+
     membershipRepository = {
       create: jest.fn(),
       save: jest.fn(),
+      findOne: jest.fn(),
+    };
+
+    mockManager = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+
+    mockDataSource = {
+      transaction: jest
+        .fn()
+        .mockImplementation(
+          (cb: (manager: typeof mockManager) => Promise<unknown>) =>
+            cb(mockManager),
+        ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrganisationsService,
-        {
-          provide: getRepositoryToken(Organisation),
-          useValue: repository,
-        },
+        { provide: getRepositoryToken(Organisation), useValue: repository },
         {
           provide: getRepositoryToken(OrganisationMembership),
           useValue: membershipRepository,
         },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -74,61 +88,118 @@ describe('OrganisationsService', () => {
   });
 
   describe('create', () => {
-    it('creates when slug is free', async () => {
-      const entity = {
+    it('auto-generates slug from name and creates org + membership in a transaction', async () => {
+      // generateUniqueSlug: no existing slugs
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+      // UKPRN uniqueness check
+      repository.findOne.mockResolvedValueOnce(null);
+
+      const orgEntity = {
         id: 'org-1',
-        name: 'Acme',
-        slug: 'acme',
+        name: 'Acme Trust',
+        slug: 'acme-trust',
       } as Organisation;
-      repository.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(entity);
-      const membership = {
-        id: 'mem-1',
-        role: OrganisationRole.OWNER,
-      } as OrganisationMembership;
-      transactionMembershipRepo.create.mockReturnValue(membership);
-      transactionMembershipRepo.save.mockResolvedValue(membership);
+      const membershipEntity = {} as OrganisationMembership;
+      mockManager.create
+        .mockReturnValueOnce(orgEntity as never)
+        .mockReturnValueOnce(membershipEntity as never);
+      mockManager.save
+        .mockResolvedValueOnce(orgEntity as unknown)
+        .mockResolvedValueOnce(membershipEntity as unknown);
 
-      const result = await service.create(
-        {
-          name: 'Acme',
-          slug: 'Acme',
-        },
-        'user-creator',
-      );
+      const result = await service.create(baseOrgDto, 'user-1');
 
-      expect(repository.findOne).toHaveBeenNthCalledWith(1, {
-        where: { slug: 'acme' },
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(mockManager.create).toHaveBeenNthCalledWith(1, Organisation, {
+        name: 'Acme Trust',
+        slug: 'acme-trust',
+        portalType: null,
+        ukprn: '10012345',
+        address: '1 Training Lane',
+        city: 'London',
+        postcode: 'SW1A 1AA',
+        country: 'United Kingdom',
+        orgEmail: 'info@acme.co.uk',
+        orgPhone: null,
+        website: null,
       });
-      expect(transactionQuery).toHaveBeenCalledWith(
-        `INSERT INTO organisations (id, name, slug) VALUES ($1, $2, $3)`,
-        [expect.any(String), 'Acme', 'acme'],
+      expect(mockManager.create).toHaveBeenNthCalledWith(
+        2,
+        OrganisationMembership,
+        {
+          user: { id: 'user-1' },
+          organisation: { id: 'org-1' },
+          role: OrganisationRole.OWNER,
+          status: MembershipStatus.ACTIVE,
+          joinedAt: expect.any(Date),
+        },
       );
-      expect(transactionMembershipRepo.create).toHaveBeenCalledTimes(1);
-      const createCalls = transactionMembershipRepo.create.mock.calls as [
-        [
-          {
-            organisation: { id: string };
-            user: { id: string };
-            role: OrganisationRole;
-          },
-        ],
-      ];
-      const createArg = createCalls[0][0];
-      expect(createArg.organisation.id).toEqual(expect.any(String));
-      expect(createArg.user).toEqual({ id: 'user-creator' });
-      expect(createArg.role).toBe(OrganisationRole.OWNER);
-      expect(result).toEqual(entity);
+      expect(mockManager.save).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(orgEntity);
     });
 
-    it('throws ConflictException when slug exists', async () => {
-      repository.findOne.mockResolvedValueOnce({ id: 'x' } as Organisation);
+    it('appends numeric suffix when generated slug is already taken', async () => {
+      // Simulate 'acme-trust' and 'acme-trust-1' both taken
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { slug: 'acme-trust' },
+        { slug: 'acme-trust-1' },
+      ] as Organisation[]);
+      repository.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.create({ name: 'A', slug: 'taken-slug' }, 'user-creator'),
-      ).rejects.toBeInstanceOf(ConflictException);
-      expect(transactionMock).not.toHaveBeenCalled();
+      const orgEntity = {
+        id: 'org-2',
+        name: 'Acme Trust',
+        slug: 'acme-trust-2',
+      } as Organisation;
+      mockManager.create
+        .mockReturnValueOnce(orgEntity as never)
+        .mockReturnValueOnce({} as never);
+      mockManager.save
+        .mockResolvedValueOnce(orgEntity as never)
+        .mockResolvedValueOnce({} as never);
+
+      const result = await service.create(baseOrgDto, 'user-1');
+
+      expect(mockManager.create).toHaveBeenNthCalledWith(
+        1,
+        Organisation,
+        expect.objectContaining({ slug: 'acme-trust-2' }),
+      );
+      expect(result).toEqual(orgEntity);
+    });
+
+    it('throws ConflictException when UKPRN belongs to another org', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+      repository.findOne.mockResolvedValueOnce({ id: 'other' } as Organisation);
+
+      await expect(service.create(baseOrgDto, 'user-1')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('propagates error and rolls back when membership insert fails', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+      repository.findOne.mockResolvedValueOnce(null);
+
+      const orgEntity = {
+        id: 'org-1',
+        name: 'Acme Trust',
+        slug: 'acme-trust',
+      } as Organisation;
+      mockManager.create
+        .mockReturnValueOnce(orgEntity as never)
+        .mockReturnValueOnce({} as never);
+      mockManager.save
+        .mockResolvedValueOnce(orgEntity as never)
+        .mockRejectedValueOnce(new Error('DB constraint violation'));
+
+      await expect(service.create(baseOrgDto, 'user-1')).rejects.toThrow(
+        'DB constraint violation',
+      );
+      // Org save succeeded (1st call), membership save rejected (2nd call).
+      // Transaction wrapper sees the rejection and rolls back — TypeORM handles that.
+      expect(mockManager.save).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -136,13 +207,11 @@ describe('OrganisationsService', () => {
     it('returns organisation when found', async () => {
       const org = { id: 'org-1', name: 'A', slug: 'a' } as Organisation;
       repository.findOne.mockResolvedValueOnce(org);
-
       await expect(service.findOne('org-1')).resolves.toEqual(org);
     });
 
     it('throws NotFoundException when missing', async () => {
       repository.findOne.mockResolvedValueOnce(null);
-
       await expect(service.findOne('missing')).rejects.toBeInstanceOf(
         NotFoundException,
       );
@@ -150,42 +219,43 @@ describe('OrganisationsService', () => {
   });
 
   describe('update', () => {
-    it('throws ConflictException when new slug belongs to another org', async () => {
+    it('throws ConflictException when new UKPRN belongs to another org', async () => {
       const existing = {
         id: 'org-1',
         name: 'A',
-        slug: 'alpha',
+        slug: 'a',
+        ukprn: '11111111',
       } as Organisation;
-      const other = {
-        id: 'org-2',
-        name: 'B',
-        slug: 'beta',
-      } as Organisation;
-
+      const other = { id: 'org-2', ukprn: '22222222' } as Organisation;
       repository.findOne
-        .mockResolvedValueOnce(existing)
-        .mockResolvedValueOnce(other);
+        .mockResolvedValueOnce(existing) // findOne in findOne()
+        .mockResolvedValueOnce(other); //   UKPRN clash check
 
       await expect(
-        service.update('org-1', { slug: 'beta' }),
+        service.update('org-1', { ukprn: '22222222' }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('updates when slug unchanged', async () => {
+    it('updates fields when payload is valid', async () => {
       const existing = {
         id: 'org-1',
-        name: 'Old',
-        slug: 'same',
+        name: 'Old Name',
+        slug: 'old-name',
+        city: 'Manchester',
       } as Organisation;
       repository.findOne.mockResolvedValueOnce(existing);
       repository.save.mockImplementation((o: Organisation) =>
         Promise.resolve(o),
       );
 
-      const result = await service.update('org-1', { name: 'New' });
+      const result = await service.update('org-1', {
+        name: 'New Name',
+        city: 'London',
+      });
 
-      expect(result.name).toBe('New');
-      expect(result.slug).toBe('same');
+      expect(result.name).toBe('New Name');
+      expect(result.city).toBe('London');
+      expect(result.slug).toBe('old-name'); // slug unchanged
     });
   });
 

@@ -23,6 +23,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
 import { RlsBootstrapMiddleware } from './common/middleware/rls-bootstrap.middleware.js';
 import appConfig from './config/app.config.js';
 import databaseConfig from './config/typeorm.config.js';
+// import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { getEnv, validateEnv } from './config/validate-env.js';
 import { HealthModule } from './health/health.module.js';
 import { InvitationsModule } from './invitations/invitations.module.js';

@@ -1,14 +1,17 @@
+import { resolvePortalFrontendUrl } from '../../common/utils/resolve-portal-url.util.js';
 import { EmailTemplate } from '../email-template.enum.js';
 import { formatTokenTtlLabel } from '../format-token-ttl-label.js';
 
 import { BaseEmailPayload } from './base-email.payload.js';
 
 import type { ConfigService } from '@nestjs/config';
+import type { PortalType } from '../../organisations/portal-type.enum.js';
 
 export interface IEmailVerificationEmailParams {
   to: string;
   firstName: string;
   token: string;
+  portalType?: PortalType;
 }
 
 interface IEmailVerificationTemplateContext {
@@ -31,7 +34,7 @@ export class EmailVerificationEmail extends BaseEmailPayload {
     config: ConfigService,
     params: IEmailVerificationEmailParams,
   ): EmailVerificationEmail {
-    const frontendBase = config.get<string>('app.frontend.baseUrl', '');
+    const frontendBase = resolvePortalFrontendUrl(config, params.portalType);
     const ttlSeconds = config.get<number>(
       'app.emailVerification.tokenTtlSeconds',
       86_400,

@@ -9,7 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 
-import { User } from './entities/user.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { User } from './entities/user.entity.js';
 
 const SALT_ROUNDS = 12;
 
@@ -18,7 +19,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(data: {
     firstName: string;
@@ -54,6 +55,7 @@ export class UsersService {
       where: { email },
       select: [
         'id',
+        'title',
         'firstName',
         'lastName',
         'email',
@@ -61,10 +63,42 @@ export class UsersService {
         'isEmailVerified',
         'isActive',
         'avatarUrl',
+        'phone',
+        'dateOfBirth',
+        'gender',
+        'jobTitle',
+        'department',
+        'bio',
+        'locale',
+        'timezone',
+        'lastLoginAt',
         'createdAt',
         'updatedAt',
       ],
     });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
+    const user = await this.findById(userId);
+
+    if (dto.title !== undefined) user.title = dto.title;
+    if (dto.firstName !== undefined) user.firstName = dto.firstName.trim();
+    if (dto.lastName !== undefined) user.lastName = dto.lastName.trim();
+    if (dto.phone !== undefined) user.phone = dto.phone?.trim() || null;
+    if (dto.dateOfBirth !== undefined) user.dateOfBirth = dto.dateOfBirth;
+    if (dto.gender !== undefined) user.gender = dto.gender;
+    if (dto.jobTitle !== undefined) user.jobTitle = dto.jobTitle?.trim() || null;
+    if (dto.department !== undefined) user.department = dto.department?.trim() || null;
+    if (dto.bio !== undefined) user.bio = dto.bio?.trim() || null;
+    if (dto.avatarUrl !== undefined) user.avatarUrl = dto.avatarUrl ?? null;
+    if (dto.locale !== undefined) user.locale = dto.locale;
+    if (dto.timezone !== undefined) user.timezone = dto.timezone;
+
+    return this.usersRepository.save(user);
+  }
+
+  async updateLastLoginAt(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, { lastLoginAt: new Date() });
   }
 
   async createFromOidc(data: {

@@ -17,11 +17,14 @@ import { EmailService } from '../email/email.service.js';
 import { EmailVerificationEmail } from '../email/payloads/email-verification.email.js';
 import { PasswordResetEmail } from '../email/payloads/password-reset.email.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
+import { MembershipStatus } from '../organisations/membership-status.enum.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
+import { PortalType } from '../organisations/portal-type.enum.js';
 import { RedisService } from '../redis/redis.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { UsersService } from '../users/users.service.js';
 
+import { ActiveOrganisationMeDto } from './dto/active-organisation-context.dto.js';
 import { AuthResponseDto } from './dto/auth-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
@@ -38,6 +41,24 @@ const ROLE_PRIORITY: Record<OrganisationRole, number> = {
   [OrganisationRole.MEMBER]: 2,
 };
 
+type MembershipRow = {
+  mRole: string;
+  mStatus: string;
+  oId: string;
+  oName: string;
+  oSlug: string;
+  oType: string | null;
+  oPortalType: string | null;
+  oUkprn: string | null;
+  oAddress: string | null;
+  oCity: string | null;
+  oPostcode: string | null;
+  oCountry: string | null;
+  oOrgEmail: string | null;
+  oOrgPhone: string | null;
+  oWebsite: string | null;
+};
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -51,11 +72,11 @@ export class AuthService {
     private readonly emailService: EmailService,
     @InjectRepository(OrganisationMembership)
     private readonly membershipRepo: Repository<OrganisationMembership>,
-  ) {}
+  ) { }
 
-  async signup(dto: SignupDto): Promise<void> {
+  async signup(dto: SignupDto, portalType?: PortalType): Promise<void> {
     const user = await this.usersService.create(dto);
-    await this.sendVerificationEmail(user);
+    await this.sendVerificationEmail(user, portalType);
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -76,6 +97,8 @@ export class AuthService {
     if (!user.isEmailVerified) {
       throw new ForbiddenException('Email address not verified');
     }
+
+    void this.usersService.updateLastLoginAt(user.id).catch(() => undefined);
 
     return this.generateTokens(user);
   }
@@ -104,7 +127,10 @@ export class AuthService {
   }
 
   /** Always completes; does not reveal whether the email exists. */
-  async requestPasswordReset(email: string): Promise<void> {
+  async requestPasswordReset(
+    email: string,
+    portalType?: PortalType,
+  ): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user?.isActive) {
       return;
@@ -123,6 +149,7 @@ export class AuthService {
           to: user.email,
           firstName: user.firstName,
           token,
+          portalType,
         }),
       );
     } catch (err) {
@@ -176,13 +203,16 @@ export class AuthService {
   }
 
   /** Always completes; does not reveal whether the email exists. */
-  async resendVerification(email: string): Promise<void> {
+  async resendVerification(
+    email: string,
+    portalType?: PortalType,
+  ): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user?.isActive || user.isEmailVerified) {
       return;
     }
 
-    await this.sendVerificationEmail(user);
+    await this.sendVerificationEmail(user, portalType);
   }
 
   /** Issue JWT pair for an existing user (e.g. after OIDC callback). */
@@ -190,7 +220,74 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  private async sendVerificationEmail(user: User): Promise<void> {
+  /**
+   * Resolves the active organisation for a user scoped strictly to the given portalType.
+   * Returns null when no active membership exists for that portal. Single round-trip, no N+1.
+   * getRawOne() is intentional: innerJoinAndSelect + select() leaves the relation unhydrated in TypeORM.
+   */
+  async resolveActiveOrganisationForUser(
+    userId: string,
+    portalType: PortalType,
+  ): Promise<ActiveOrganisationMeDto | null> {
+    const roleOrder =
+      `CASE m.role` +
+      ` WHEN '${OrganisationRole.OWNER}' THEN 0` +
+      ` WHEN '${OrganisationRole.ADMIN}' THEN 1` +
+      ` WHEN '${OrganisationRole.MEMBER}' THEN 2 ELSE 3 END`;
+
+    const row = await this.membershipRepo
+      .createQueryBuilder('m')
+      .innerJoin('m.organisation', 'o')
+      .select('m.role', 'mRole')
+      .addSelect('m.status', 'mStatus')
+      .addSelect('o.id', 'oId')
+      .addSelect('o.name', 'oName')
+      .addSelect('o.slug', 'oSlug')
+      .addSelect('o.type', 'oType')
+      .addSelect('o.portalType', 'oPortalType')
+      .addSelect('o.ukprn', 'oUkprn')
+      .addSelect('o.address', 'oAddress')
+      .addSelect('o.city', 'oCity')
+      .addSelect('o.postcode', 'oPostcode')
+      .addSelect('o.country', 'oCountry')
+      .addSelect('o.orgEmail', 'oOrgEmail')
+      .addSelect('o.orgPhone', 'oOrgPhone')
+      .addSelect('o.website', 'oWebsite')
+      .where('m."userId" = :userId', { userId })
+      .andWhere('m.status = :status', { status: MembershipStatus.ACTIVE })
+      .andWhere('o.portalType = :portalType', { portalType })
+      .orderBy(roleOrder, 'ASC')
+      .addOrderBy('m.joinedAt', 'ASC')
+      .limit(1)
+      .getRawOne<MembershipRow>();
+
+    if (!row) return null;
+
+    return {
+      roles: [row.mRole],
+      membershipStatus: row.mStatus as MembershipStatus,
+      organisation: {
+        id: row.oId,
+        name: row.oName,
+        slug: row.oSlug,
+        type: row.oType ?? null,
+        portalType: (row.oPortalType as PortalType) ?? null,
+        ukprn: row.oUkprn ?? null,
+        address: row.oAddress ?? null,
+        city: row.oCity ?? null,
+        postcode: row.oPostcode ?? null,
+        country: row.oCountry ?? null,
+        orgEmail: row.oOrgEmail ?? null,
+        orgPhone: row.oOrgPhone ?? null,
+        website: row.oWebsite ?? null,
+      },
+    };
+  }
+
+  private async sendVerificationEmail(
+    user: User,
+    portalType?: PortalType,
+  ): Promise<void> {
     if (user.isEmailVerified) {
       return;
     }
@@ -208,6 +305,7 @@ export class AuthService {
           to: user.email,
           firstName: user.firstName,
           token,
+          portalType,
         }),
       );
     } catch (err) {
@@ -218,6 +316,11 @@ export class AuthService {
     }
   }
 
+  /**
+   * Active organisation: lowest role priority wins (OWNER, then ADMIN, then MEMBER),
+   * with earliest membership createdAt as tiebreaker.
+   * Used only for JWT generation; loads minimal data with no portal scoping.
+   */
   private async resolveActiveMembershipForUser(
     userId: string,
   ): Promise<OrganisationMembership | null> {
@@ -256,9 +359,9 @@ export class AuthService {
       email: user.email,
       ...(membership?.organisation
         ? {
-            orgId: membership.organisation.id,
-            roles: [membership.role],
-          }
+          orgId: membership.organisation.id,
+          roles: [membership.role],
+        }
         : {}),
     };
 
