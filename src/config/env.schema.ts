@@ -54,6 +54,14 @@ export const envSchema = z
       .max(3600)
       .default(240),
 
+    QUEUE_OPS_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+
+    QUEUE_OPS_API_KEY: z.string().optional().default(''),
+
     THROTTLE_ENABLED: z
       .string()
       .optional()
@@ -159,6 +167,20 @@ export const envSchema = z
           'SWAGGER_PASSWORD must be set (min 12 characters) when NODE_ENV is production or staging.',
         path: ['SWAGGER_PASSWORD'],
       });
+    }
+
+    if (data.QUEUE_OPS_ENABLED) {
+      const weakOpsKey =
+        !data.QUEUE_OPS_API_KEY?.trim() || data.QUEUE_OPS_API_KEY.length < 32;
+
+      if (weakOpsKey) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'QUEUE_OPS_API_KEY must be set (min 32 characters) when QUEUE_OPS_ENABLED is true and NODE_ENV is production or staging.',
+          path: ['QUEUE_OPS_API_KEY'],
+        });
+      }
     }
 
     if (data.EMAIL_PROVIDER === 'resend' && deployed) {

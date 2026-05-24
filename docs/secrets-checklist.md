@@ -13,6 +13,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | BullMQ key prefix | `BULLMQ_PREFIX` | Optional; default `graddly`. Namespace for job queue keys in Redis. API and worker processes must share the same value. |
 | Cron jobs | `CRON_ENABLED`, `CRON_HEALTH_SCHEDULE` | Crons run in the **worker** process only. Set `CRON_ENABLED=false` to disable. Default health sample: every 5 minutes (`*/5 * * * *`). |
 | Cron distributed lock | `CRON_LOCK_ENABLED`, `CRON_LOCK_TTL_SECONDS` | When multiple worker replicas run, Redis `SET NX` ensures one instance per tick. Default TTL 240s; set below the cron interval. Disable with `CRON_LOCK_ENABLED=false` only for local debugging. |
+| Queue ops (failed jobs) | `QUEUE_OPS_ENABLED`, `QUEUE_OPS_API_KEY` | Internal API at `/api/v1/ops/queues` (list failed jobs, retry, remove). Min **32** characters for the key when enabled in production/staging. Send header `X-Queue-Ops-Api-Key`. |
 
 ## Strongly recommended
 

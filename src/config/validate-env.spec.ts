@@ -20,6 +20,8 @@ describe('parseEnv', () => {
     expect(env.CRON_HEALTH_SCHEDULE).toBe('*/5 * * * *');
     expect(env.CRON_LOCK_ENABLED).toBe(true);
     expect(env.CRON_LOCK_TTL_SECONDS).toBe(240);
+    expect(env.QUEUE_OPS_ENABLED).toBe(false);
+    expect(env.QUEUE_OPS_API_KEY).toBe('');
   });
 
   it('accepts OIDC disabled without client credentials', () => {

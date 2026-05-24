@@ -16,6 +16,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { OidcSessionMiddleware } from './auth/oidc/middleware/oidc-session.middleware.js';
+import { BullmqOpsModule } from './bullmq/bullmq-ops.module.js';
 import { BullmqModule } from './bullmq/bullmq.module.js';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor.js';
@@ -77,6 +78,7 @@ import { UsersModule } from './users/users.module.js';
     }),
     RedisModule,
     BullmqModule,
+    BullmqOpsModule,
     UsersModule,
     AuthModule,
     OrganisationsModule,

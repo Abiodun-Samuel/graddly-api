@@ -10,5 +10,7 @@ process.env.THROTTLE_ENABLED = 'false';
 process.env.OIDC_ENABLED = 'false';
 process.env.EMAIL_PROVIDER = 'noop';
 process.env.FRONTEND_BASE_URL = 'http://localhost:3001';
+process.env.QUEUE_OPS_ENABLED = 'true';
+process.env.QUEUE_OPS_API_KEY = 'test-queue-ops-api-key-min-32-chars!!';
 
 import '../src/database/postgres-query-runner.patch.js';

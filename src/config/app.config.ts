@@ -50,6 +50,10 @@ export default registerAs('app', () => {
       lockEnabled: e.CRON_LOCK_ENABLED,
       lockTtlSeconds: e.CRON_LOCK_TTL_SECONDS,
     },
+    queueOps: {
+      enabled: e.QUEUE_OPS_ENABLED,
+      apiKey: e.QUEUE_OPS_API_KEY,
+    },
     loggly: {
       token: e.LOGGLY_TOKEN,
       subdomain: e.LOGGLY_SUBDOMAIN,
