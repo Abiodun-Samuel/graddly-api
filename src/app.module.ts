@@ -14,6 +14,7 @@ import { WinstonModule } from 'nest-winston';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { OidcSessionMiddleware } from './auth/oidc/middleware/oidc-session.middleware.js';
 import { BullmqOpsModule } from './bullmq/bullmq-ops.module.js';
@@ -53,6 +54,7 @@ import { UsersModule } from './users/users.module.js';
         password: config.get<string>('database.password'),
         database: config.get<string>('database.database'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        subscribers: [__dirname + '/**/*.subscriber{.ts,.js}'],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         migrationsRun: true,
         synchronize: false,
@@ -87,6 +89,7 @@ import { UsersModule } from './users/users.module.js';
     InvitationsModule,
     NotificationsModule,
     StorageModule,
+    AuditModule,
     HealthModule,
   ],
   controllers: [AppController],
