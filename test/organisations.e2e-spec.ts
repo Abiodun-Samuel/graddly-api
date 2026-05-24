@@ -2,15 +2,16 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
 import { createVerifiedUser } from './helpers/e2e-http.js';
-import { createE2ePgClient } from './helpers/rls-db.js';
 import {
   expectFilteredHttpExceptionBody,
   expectOrganisationResource,
   expectSuccessEnvelope,
 } from './helpers/e2e-response-contracts.js';
+import { createE2ePgClient } from './helpers/rls-db.js';
 
 /** Minimal valid payload for POST /organisations. Slug is backend-generated. */
 const baseOrgPayload = {

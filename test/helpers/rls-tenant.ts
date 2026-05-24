@@ -2,8 +2,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 
-import { buildOrgPayload } from './e2e-organisation.js';
 import { createVerifiedUser } from './e2e-http.js';
+import { buildOrgPayload } from './e2e-organisation.js';
 
 export interface IRlsTenantFixture {
   accessToken: string;

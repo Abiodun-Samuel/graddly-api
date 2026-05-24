@@ -33,6 +33,28 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /** SET key value EX ttl NX — returns true when the lock was acquired. */
+  async setNx(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  /** Deletes the key only when the stored value matches owner (safe lock release). */
+  async releaseLockIfOwner(key: string, owner: string): Promise<void> {
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+      else
+        return 0
+      end
+    `;
+    await this.client.eval(script, 1, key, owner);
+  }
+
   async del(key: string): Promise<void> {
     await this.client.del(key);
   }

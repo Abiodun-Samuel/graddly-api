@@ -33,6 +33,27 @@ export const envSchema = z
 
     BULLMQ_PREFIX: z.string().min(1).default('graddly'),
 
+    CRON_ENABLED: z
+      .string()
+      .optional()
+      .default('true')
+      .transform((v) => v !== 'false'),
+
+    CRON_HEALTH_SCHEDULE: z.string().min(1).default('*/5 * * * *'),
+
+    CRON_LOCK_ENABLED: z
+      .string()
+      .optional()
+      .default('true')
+      .transform((v) => v !== 'false'),
+
+    CRON_LOCK_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(30)
+      .max(3600)
+      .default(240),
+
     THROTTLE_ENABLED: z
       .string()
       .optional()

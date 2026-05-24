@@ -3,9 +3,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Redis from 'ioredis';
 import request from 'supertest';
 import { App } from 'supertest/types';
+
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
 import { verifyUserEmail } from './helpers/e2e-http.js';
+import { buildOrgPayload } from './helpers/e2e-organisation.js';
 import {
   expectFilteredHttpExceptionBody,
   expectValidationErrorBody,
@@ -14,7 +16,6 @@ import {
   clearEmailVerificationTokens,
   findEmailVerificationTokenForUserId,
 } from './helpers/email-verification-redis.js';
-import { buildOrgPayload } from './helpers/e2e-organisation.js';
 import { createE2ePgClient, getUserIdByEmail } from './helpers/rls-db.js';
 
 describe('AuthController (e2e)', () => {

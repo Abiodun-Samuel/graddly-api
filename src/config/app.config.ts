@@ -44,6 +44,12 @@ export default registerAs('app', () => {
     bullmq: {
       prefix: e.BULLMQ_PREFIX,
     },
+    cron: {
+      enabled: e.CRON_ENABLED,
+      healthSchedule: e.CRON_HEALTH_SCHEDULE,
+      lockEnabled: e.CRON_LOCK_ENABLED,
+      lockTtlSeconds: e.CRON_LOCK_TTL_SECONDS,
+    },
     loggly: {
       token: e.LOGGLY_TOKEN,
       subdomain: e.LOGGLY_SUBDOMAIN,

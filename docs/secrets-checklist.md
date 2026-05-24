@@ -11,6 +11,8 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Database | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Use managed Postgres where possible; restrict network access; unique password per environment. See [database-setup.md](./database-setup.md) for migrator vs app roles and RLS. |
 | Redis | `REDIS_HOST`, `REDIS_PORT` | TLS and auth if exposed beyond the private network. Used by KV, sessions, throttling, and BullMQ. |
 | BullMQ key prefix | `BULLMQ_PREFIX` | Optional; default `graddly`. Namespace for job queue keys in Redis. API and worker processes must share the same value. |
+| Cron jobs | `CRON_ENABLED`, `CRON_HEALTH_SCHEDULE` | Crons run in the **worker** process only. Set `CRON_ENABLED=false` to disable. Default health sample: every 5 minutes (`*/5 * * * *`). |
+| Cron distributed lock | `CRON_LOCK_ENABLED`, `CRON_LOCK_TTL_SECONDS` | When multiple worker replicas run, Redis `SET NX` ensures one instance per tick. Default TTL 240s; set below the cron interval. Disable with `CRON_LOCK_ENABLED=false` only for local debugging. |
 
 ## Strongly recommended
 

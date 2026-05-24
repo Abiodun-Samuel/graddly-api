@@ -16,6 +16,10 @@ describe('parseEnv', () => {
     expect(env.OIDC_ENABLED).toBe(false);
     expect(env.EMAIL_PROVIDER).toBe('noop');
     expect(env.BULLMQ_PREFIX).toBe('graddly');
+    expect(env.CRON_ENABLED).toBe(true);
+    expect(env.CRON_HEALTH_SCHEDULE).toBe('*/5 * * * *');
+    expect(env.CRON_LOCK_ENABLED).toBe(true);
+    expect(env.CRON_LOCK_TTL_SECONDS).toBe(240);
   });
 
   it('accepts OIDC disabled without client credentials', () => {
