@@ -32,6 +32,7 @@ import { winstonConfigFactory } from './logger/winston.config.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
@@ -85,6 +86,7 @@ import { UsersModule } from './users/users.module.js';
     OrganisationsModule,
     InvitationsModule,
     NotificationsModule,
+    StorageModule,
     HealthModule,
   ],
   controllers: [AppController],

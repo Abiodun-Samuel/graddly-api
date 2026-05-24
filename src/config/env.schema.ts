@@ -145,6 +145,24 @@ export const envSchema = z
       .min(300)
       .max(604_800)
       .default(604_800),
+
+    STORAGE_PROVIDER: z.enum(['s3', 'noop']).default('noop'),
+    AWS_REGION: z.string().min(1).default('eu-west-2'),
+    S3_BUCKET: z.string().optional().default(''),
+    AWS_ACCESS_KEY_ID: z.string().optional().default(''),
+    AWS_SECRET_ACCESS_KEY: z.string().optional().default(''),
+    S3_PRESIGN_UPLOAD_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3600)
+      .default(900),
+    S3_PRESIGN_DOWNLOAD_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3600)
+      .default(300),
   })
   .superRefine((data, ctx) => {
     const deployed =
@@ -207,6 +225,17 @@ export const envSchema = z
           message:
             'RESEND_FROM_EMAIL must be set when EMAIL_PROVIDER is resend and NODE_ENV is production or staging.',
           path: ['RESEND_FROM_EMAIL'],
+        });
+      }
+    }
+
+    if (data.STORAGE_PROVIDER === 's3' && deployed) {
+      if (!data.S3_BUCKET?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'S3_BUCKET must be set when STORAGE_PROVIDER is s3 and NODE_ENV is production or staging.',
+          path: ['S3_BUCKET'],
         });
       }
     }

@@ -109,5 +109,14 @@ export default registerAs('app', () => {
     invitationAccept: {
       tokenTtlSeconds: e.INVITATION_ACCEPT_TOKEN_TTL_SECONDS,
     },
+    storage: {
+      provider: e.STORAGE_PROVIDER,
+      region: e.AWS_REGION,
+      bucket: e.S3_BUCKET,
+      accessKeyId: e.AWS_ACCESS_KEY_ID,
+      secretAccessKey: e.AWS_SECRET_ACCESS_KEY,
+      presignUploadTtlSeconds: e.S3_PRESIGN_UPLOAD_TTL_SECONDS,
+      presignDownloadTtlSeconds: e.S3_PRESIGN_DOWNLOAD_TTL_SECONDS,
+    },
   };
 });

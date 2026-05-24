@@ -35,6 +35,19 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (see [password-reset.md](./password-reset.md), [email-verification.md](./email-verification.md)). |
 | Verification TTL | `EMAIL_VERIFICATION_TOKEN_TTL_SECONDS` | Optional; default 24 hours. |
 | Invitation accept token cap | `INVITATION_ACCEPT_TOKEN_TTL_SECONDS` | Optional; default 7 days; Redis TTL is clamped to invite `expiresAt`. See [invitations.md](./invitations.md). |
+
+## When file storage (S3) is enabled
+
+| Item | Variable | Notes |
+|------|-----------|--------|
+| Storage provider | `STORAGE_PROVIDER` | Set to `s3` in deployed environments that use presigned uploads. Default `noop` for local/test (fake URLs, no AWS). |
+| S3 bucket | `S3_BUCKET` | Required when `STORAGE_PROVIDER=s3` in production/staging. One bucket per environment. |
+| AWS region | `AWS_REGION` | Default `eu-west-2`. |
+| AWS credentials | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Optional locally if using instance/task role in AWS. |
+| Presign TTL | `S3_PRESIGN_UPLOAD_TTL_SECONDS`, `S3_PRESIGN_DOWNLOAD_TTL_SECONDS` | Upload default 900s; download default 300s. |
+
+See [file-storage.md](./file-storage.md) for client upload flow and allowed MIME types.
+
 | JWT access TTL | `JWT_ACCESS_EXPIRES_IN` | Default `15m`. See [auth-tokens.md](./auth-tokens.md). |
 | JWT refresh TTL | `JWT_REFRESH_EXPIRES_IN` | Default `7d`. |
 | Refresh reuse grace | `REFRESH_REUSE_GRACE_SECONDS` | Tombstone window after rotation (default `30`). |
