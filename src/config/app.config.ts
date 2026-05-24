@@ -41,6 +41,9 @@ export default registerAs('app', () => {
       port: e.REDIS_PORT,
       password: e.REDIS_PASSWORD,
     },
+    bullmq: {
+      prefix: e.BULLMQ_PREFIX,
+    },
     loggly: {
       token: e.LOGGLY_TOKEN,
       subdomain: e.LOGGLY_SUBDOMAIN,

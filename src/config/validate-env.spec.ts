@@ -15,6 +15,7 @@ describe('parseEnv', () => {
     expect(env.TENANT_DB_CONTEXT_ENABLED).toBe(true);
     expect(env.OIDC_ENABLED).toBe(false);
     expect(env.EMAIL_PROVIDER).toBe('noop');
+    expect(env.BULLMQ_PREFIX).toBe('graddly');
   });
 
   it('accepts OIDC disabled without client credentials', () => {

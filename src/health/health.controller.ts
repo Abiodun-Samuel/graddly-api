@@ -6,17 +6,23 @@ import {
 } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
 
+import { RedisHealthIndicator } from './redis-health.indicator.js';
+
 @SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(
     private health: HealthCheckService,
     private db: TypeOrmHealthIndicator,
+    private redis: RedisHealthIndicator,
   ) {}
 
   @Get()
   @HealthCheck()
   check() {
-    return this.health.check([() => this.db.pingCheck('database')]);
+    return this.health.check([
+      () => this.db.pingCheck('database'),
+      () => this.redis.isHealthy('redis'),
+    ]);
   }
 }

@@ -31,6 +31,8 @@ export const envSchema = z
     REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
     REDIS_PASSWORD: z.string().optional(),
 
+    BULLMQ_PREFIX: z.string().min(1).default('graddly'),
+
     THROTTLE_ENABLED: z
       .string()
       .optional()
