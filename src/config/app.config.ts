@@ -118,5 +118,8 @@ export default registerAs('app', () => {
       presignUploadTtlSeconds: e.S3_PRESIGN_UPLOAD_TTL_SECONDS,
       presignDownloadTtlSeconds: e.S3_PRESIGN_DOWNLOAD_TTL_SECONDS,
     },
+    pdf: {
+      provider: e.PDF_PROVIDER,
+    },
   };
 });

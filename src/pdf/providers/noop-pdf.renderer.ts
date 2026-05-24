@@ -1,0 +1,25 @@
+import { Injectable } from '@nestjs/common';
+
+import type {
+  IPdfRenderer,
+  ISignedPdfOptions,
+} from '../interfaces/pdf-renderer.interface.js';
+
+const MINIMAL_PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n',
+);
+
+@Injectable()
+export class NoopPdfRenderer implements IPdfRenderer {
+  renderHelloPdf(): Promise<Buffer> {
+    return Promise.resolve(MINIMAL_PDF);
+  }
+
+  embedSignature(
+    _unsignedPdf: Buffer,
+    _signaturePng: Buffer,
+    _options: ISignedPdfOptions,
+  ): Promise<Buffer> {
+    return Promise.resolve(MINIMAL_PDF);
+  }
+}

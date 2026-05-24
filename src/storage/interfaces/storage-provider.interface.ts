@@ -20,6 +20,12 @@ export interface IPresignedDownloadResult {
   expiresAt: Date;
 }
 
+export interface IPutObjectRequest {
+  key: string;
+  body: Buffer;
+  contentType: string;
+}
+
 export interface IStorageProvider {
   createUploadUrl(
     request: IPresignedUploadRequest,
@@ -28,4 +34,8 @@ export interface IStorageProvider {
   createDownloadUrl(
     request: IPresignedDownloadRequest,
   ): Promise<IPresignedDownloadResult>;
+
+  putObject(request: IPutObjectRequest): Promise<void>;
+
+  getObjectBuffer(key: string): Promise<Buffer>;
 }

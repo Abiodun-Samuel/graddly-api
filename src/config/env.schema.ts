@@ -163,6 +163,8 @@ export const envSchema = z
       .min(60)
       .max(3600)
       .default(300),
+
+    PDF_PROVIDER: z.enum(['pdfkit', 'noop']).default('pdfkit'),
   })
   .superRefine((data, ctx) => {
     const deployed =

@@ -8,7 +8,6 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { WinstonModule } from 'nest-winston';
 
@@ -24,14 +23,17 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
 import { RlsBootstrapMiddleware } from './common/middleware/rls-bootstrap.middleware.js';
 import appConfig from './config/app.config.js';
+import { typeOrmForRoot } from './config/typeorm-module.factory.js';
 import databaseConfig from './config/typeorm.config.js';
 // import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { getEnv, validateEnv } from './config/validate-env.js';
+import { EsignatureModule } from './esignature/esignature.module.js';
 import { HealthModule } from './health/health.module.js';
 import { InvitationsModule } from './invitations/invitations.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
+import { PdfModule } from './pdf/pdf.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -44,23 +46,7 @@ import { UsersModule } from './users/users.module.js';
       load: [appConfig, databaseConfig],
     }),
     SentryModule.forRoot(),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('database.host'),
-        port: config.get<number>('database.port'),
-        username: config.get<string>('database.username'),
-        password: config.get<string>('database.password'),
-        database: config.get<string>('database.database'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        subscribers: [__dirname + '/**/*.subscriber{.ts,.js}'],
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        migrationsRun: true,
-        synchronize: false,
-        logging: config.get<boolean>('database.logging'),
-      }),
-    }),
+    typeOrmForRoot({ migrationsRun: true }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -89,6 +75,8 @@ import { UsersModule } from './users/users.module.js';
     InvitationsModule,
     NotificationsModule,
     StorageModule,
+    PdfModule,
+    EsignatureModule,
     AuditModule,
     HealthModule,
   ],

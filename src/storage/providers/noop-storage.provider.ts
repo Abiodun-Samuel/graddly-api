@@ -6,8 +6,11 @@ import {
   IPresignedDownloadResult,
   IPresignedUploadRequest,
   IPresignedUploadResult,
+  IPutObjectRequest,
   IStorageProvider,
 } from '../interfaces/storage-provider.interface.js';
+
+import { noopStorageObjects } from './noop-storage.store.js';
 
 @Injectable()
 export class NoopStorageProvider implements IStorageProvider {
@@ -39,5 +42,21 @@ export class NoopStorageProvider implements IStorageProvider {
     this.logger.debug(`Noop download URL for ${request.key}`);
 
     return Promise.resolve({ downloadUrl, expiresAt });
+  }
+
+  putObject(request: IPutObjectRequest): Promise<void> {
+    noopStorageObjects.set(request.key, Buffer.from(request.body));
+    this.logger.debug(
+      `Noop putObject ${request.key} (${request.body.length} bytes)`,
+    );
+    return Promise.resolve();
+  }
+
+  getObjectBuffer(key: string): Promise<Buffer> {
+    const value = noopStorageObjects.get(key);
+    if (!value) {
+      return Promise.reject(new Error(`Noop object not found: ${key}`));
+    }
+    return Promise.resolve(Buffer.from(value));
   }
 }

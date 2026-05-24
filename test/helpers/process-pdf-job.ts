@@ -1,0 +1,33 @@
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Job } from 'bullmq';
+
+import { PdfGenerationProcessor } from '../../src/bullmq/processors/pdf-generation.processor.js';
+import { PdfGenerationJob } from '../../src/pdf/entities/pdf-generation-job.entity.js';
+import { PDF_JOB_GENERATE } from '../../src/pdf/pdf-job.constants.js';
+import { PdfService } from '../../src/pdf/pdf.service.js';
+import { StorageKeyBuilder } from '../../src/storage/storage-key.builder.js';
+import { StorageService } from '../../src/storage/storage.service.js';
+
+import type { IPdfJobPayload } from '../../src/pdf/pdf-job.payload.js';
+import type { INestApplication } from '@nestjs/common';
+import type { Repository } from 'typeorm';
+
+export async function processPdfJobInApp(
+  app: INestApplication,
+  payload: IPdfJobPayload,
+): Promise<void> {
+  const processor = new PdfGenerationProcessor(
+    app.get(PdfService),
+    app.get(StorageService),
+    app.get(StorageKeyBuilder),
+    app.get<Repository<PdfGenerationJob>>(getRepositoryToken(PdfGenerationJob)),
+  );
+
+  const job = {
+    id: payload.jobId,
+    name: PDF_JOB_GENERATE,
+    data: payload,
+  } as Job<IPdfJobPayload>;
+
+  await processor.process(job);
+}

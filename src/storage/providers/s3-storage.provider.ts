@@ -12,6 +12,7 @@ import type {
   IPresignedDownloadResult,
   IPresignedUploadRequest,
   IPresignedUploadResult,
+  IPutObjectRequest,
   IStorageProvider,
 } from '../interfaces/storage-provider.interface.js';
 
@@ -77,5 +78,37 @@ export class S3StorageProvider implements IStorageProvider {
       downloadUrl,
       expiresAt: new Date(Date.now() + request.expiresInSeconds * 1000),
     };
+  }
+
+  async putObject(request: IPutObjectRequest): Promise<void> {
+    /* eslint-disable @typescript-eslint/naming-convention -- AWS SDK input shape */
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: request.key,
+        Body: request.body,
+        ContentType: request.contentType,
+      }),
+    );
+    /* eslint-enable @typescript-eslint/naming-convention */
+  }
+
+  async getObjectBuffer(key: string): Promise<Buffer> {
+    /* eslint-disable @typescript-eslint/naming-convention -- AWS SDK input shape */
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+    /* eslint-enable @typescript-eslint/naming-convention */
+
+    const body = response.Body;
+    if (!body) {
+      throw new Error(`Empty S3 object body for key ${key}`);
+    }
+
+    const bytes = await body.transformToByteArray();
+    return Buffer.from(bytes);
   }
 }

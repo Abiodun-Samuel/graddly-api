@@ -2,6 +2,8 @@ import 'dotenv/config';
 
 import './config/env-bootstrap.js';
 
+import './database/postgres-query-runner.patch.js';
+
 import { NestFactory } from '@nestjs/core';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 

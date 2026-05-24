@@ -13,6 +13,10 @@ const ALLOWED_ORIGINS = [
 ];
 
 export function configureApp(app: INestApplication): INestApplication {
+  const http = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  http.set('trust proxy', 1);
   app.enableCors({
     origin: (
       origin: string | undefined,

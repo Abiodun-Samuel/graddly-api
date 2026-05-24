@@ -12,6 +12,7 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN yarn build
+RUN node -e "require('pdfkit')"
 
 # --- Production deps only ---
 FROM base AS prod-deps

@@ -79,4 +79,25 @@ export class StorageService {
       expiresAt: result.expiresAt,
     };
   }
+
+  async putObject(
+    organisationId: string,
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    if (!this.keyBuilder.belongsToOrganisation(key, organisationId)) {
+      throw new ForbiddenException('Access denied for this object key');
+    }
+
+    await this.storage.putObject({ key, body, contentType });
+  }
+
+  async getObjectBuffer(organisationId: string, key: string): Promise<Buffer> {
+    if (!this.keyBuilder.belongsToOrganisation(key, organisationId)) {
+      throw new ForbiddenException('Access denied for this object key');
+    }
+
+    return this.storage.getObjectBuffer(key);
+  }
 }
