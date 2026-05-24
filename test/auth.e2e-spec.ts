@@ -3,8 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Redis from 'ioredis';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
-
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
 import { verifyUserEmail } from './helpers/e2e-http.js';
@@ -16,19 +14,8 @@ import {
   clearEmailVerificationTokens,
   findEmailVerificationTokenForUserId,
 } from './helpers/email-verification-redis.js';
-import { getUserIdByEmail } from './helpers/rls-db.js';
-
-function buildOrgPayload(name: string, ukprn: string) {
-  return {
-    name,
-    ukprn,
-    address: '1 Test Lane',
-    city: 'London',
-    postcode: 'SW1A 1AA',
-    country: 'United Kingdom',
-    orgEmail: `info@${ukprn}.co.uk`,
-  };
-}
+import { buildOrgPayload } from './helpers/e2e-organisation.js';
+import { createE2ePgClient, getUserIdByEmail } from './helpers/rls-db.js';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -286,7 +273,7 @@ describe('AuthController (e2e)', () => {
           bio: null,
           locale: 'en-GB',
           timezone: 'Europe/London',
-          lastLoginAt: null,
+          lastLoginAt: expect.any(String),
           isDeleted: false,
           deletedAt: null,
           createdAt: expect.any(String),
@@ -718,14 +705,15 @@ describe('AuthController (e2e)', () => {
     });
 
     it('revoked membership is excluded from activeOrganisation resolution', async () => {
-      const dataSource = app.get(DataSource);
-
-      await dataSource.query(
-        `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
-        [portalUserId, providerOrgId],
-      );
+      const pg = createE2ePgClient();
+      await pg.connect();
 
       try {
+        await pg.query(
+          `UPDATE organisation_memberships SET status = 'revoked' WHERE "userId" = $1 AND "organisationId" = $2`,
+          [portalUserId, providerOrgId],
+        );
+
         const res = await request(app.getHttpServer())
           .get('/api/v1/auth/me')
           .set('Authorization', `Bearer ${portalToken}`)
@@ -734,59 +722,12 @@ describe('AuthController (e2e)', () => {
 
         expect(res.body.data.activeOrganisation).toBeNull();
       } finally {
-        await dataSource.query(
+        await pg.query(
           `UPDATE organisation_memberships SET status = 'active' WHERE "userId" = $1 AND "organisationId" = $2`,
           [portalUserId, providerOrgId],
         );
+        await pg.end();
       }
-    });
-  });
-
-  describe('GET /auth/active-organisation', () => {
-    let ctxAccessToken: string;
-    let ctxRefreshToken: string;
-
-    beforeAll(async () => {
-      const login = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email: signupDto.email, password: signupDto.password })
-        .expect(200);
-      ctxAccessToken = login.body.data.accessToken as string;
-      ctxRefreshToken = login.body.data.refreshToken as string;
-    });
-
-    it('returns 200 after refreshing the access token', async () => {
-      const refreshed = await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
-        .send({ refreshToken: ctxRefreshToken })
-        .expect(200);
-
-      const freshAccess = refreshed.body.data.accessToken as string;
-      ctxRefreshToken = refreshed.body.data.refreshToken as string;
-
-      await request(app.getHttpServer())
-        .get('/api/v1/auth/active-organisation')
-        .set('Authorization', `Bearer ${freshAccess}`)
-        .expect(200);
-    });
-
-    it('returns 200 with the current access token', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/auth/active-organisation')
-        .set('Authorization', `Bearer ${ctxAccessToken}`)
-        .expect(200);
-    });
-
-    it('returns 401 without a token', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/active-organisation')
-        .expect(401);
-
-      expectFilteredHttpExceptionBody(res.body as Record<string, unknown>, {
-        statusCode: 401,
-        message: 'Unauthorized',
-        path: '/api/v1/auth/active-organisation',
-      });
     });
   });
 

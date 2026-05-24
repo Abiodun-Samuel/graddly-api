@@ -2,11 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
-
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
 import { createVerifiedUser } from './helpers/e2e-http.js';
+import { createE2ePgClient } from './helpers/rls-db.js';
 import {
   expectFilteredHttpExceptionBody,
   expectOrganisationResource,
@@ -104,19 +103,21 @@ describe('OrganisationsController (e2e)', () => {
     });
 
     it('POST /organisations auto-creates an owner membership for the creator', async () => {
-      const dataSource = app.get(DataSource);
-      const rows = await dataSource.query<
-        {
-          role: string;
-          status: string;
-          isDeleted: boolean;
-          userId: string;
-          organisationId: string;
-        }[]
-      >(
+      const pg = createE2ePgClient();
+      await pg.connect();
+
+      const { rows } = await pg.query<{
+        role: string;
+        status: string;
+        isDeleted: boolean;
+        userId: string;
+        organisationId: string;
+      }>(
         `SELECT role, status, "isDeleted", "userId", "organisationId" FROM organisation_memberships WHERE "organisationId" = $1`,
         [organisationId],
       );
+
+      await pg.end();
 
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({

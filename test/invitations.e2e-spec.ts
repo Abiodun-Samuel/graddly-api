@@ -6,6 +6,7 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/configure-app.js';
 import { createVerifiedUser, loginVerifiedUser } from './helpers/e2e-http.js';
+import { buildOrgPayload } from './helpers/e2e-organisation.js';
 import {
   expectFilteredHttpExceptionBody,
   expectPaginatedListEnvelope,
@@ -39,7 +40,7 @@ describe('InvitationsController (e2e)', () => {
     const orgRes = await request(app.getHttpServer())
       .post('/api/v1/organisations')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ name: 'Invite Org', slug: `invite-org-${suffix}` })
+      .send(buildOrgPayload('Invite Org'))
       .expect(201);
 
     const organisationId = (orgRes.body as { data: { id: string } }).data.id;
@@ -133,7 +134,7 @@ describe('InvitationsController (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/organisations')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ name: 'Revoke Org', slug: `revoke-org-${suffix}` })
+      .send(buildOrgPayload('Revoke Org'))
       .expect(201);
 
     const { accessToken: ownerToken } = await loginVerifiedUser(

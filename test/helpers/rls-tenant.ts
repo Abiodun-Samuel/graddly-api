@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 
+import { buildOrgPayload } from './e2e-organisation.js';
 import { createVerifiedUser } from './e2e-http.js';
 
 export interface IRlsTenantFixture {
@@ -25,7 +26,7 @@ export async function signupLoginAndCreateOrg(
   const createRes = await request(app.getHttpServer())
     .post('/api/v1/organisations')
     .set('Authorization', `Bearer ${user.accessToken}`)
-    .send({ name: `${label} Trust`, slug: `rls-${label}-${Date.now()}` })
+    .send(buildOrgPayload(`${label} Trust`))
     .expect(201);
 
   return {
