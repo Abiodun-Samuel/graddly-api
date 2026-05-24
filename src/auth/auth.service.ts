@@ -13,7 +13,7 @@ import { v4 as uuidV4 } from 'uuid';
 
 import { setCurrentUserId } from '../common/context/correlation-id-context.js';
 import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
-import { EmailService } from '../email/email.service.js';
+import { EmailDispatchService } from '../email/email-dispatch.service.js';
 import { EmailVerificationEmail } from '../email/payloads/email-verification.email.js';
 import { PasswordResetEmail } from '../email/payloads/password-reset.email.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
@@ -69,7 +69,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly redis: RedisService,
     private readonly refreshTokenService: RefreshTokenService,
-    private readonly emailService: EmailService,
+    private readonly emailDispatch: EmailDispatchService,
     @InjectRepository(OrganisationMembership)
     private readonly membershipRepo: Repository<OrganisationMembership>,
   ) {}
@@ -144,7 +144,7 @@ export class AuthService {
     await this.redis.set(`${PASSWORD_RESET_PREFIX}${token}`, user.id, ttl);
 
     try {
-      await this.emailService.sendEmail(
+      await this.emailDispatch.enqueue(
         PasswordResetEmail.create(this.config, {
           to: user.email,
           firstName: user.firstName,
@@ -300,7 +300,7 @@ export class AuthService {
     await this.redis.set(`${EMAIL_VERIFY_PREFIX}${token}`, user.id, ttl);
 
     try {
-      await this.emailService.sendEmail(
+      await this.emailDispatch.enqueue(
         EmailVerificationEmail.create(this.config, {
           to: user.email,
           firstName: user.firstName,

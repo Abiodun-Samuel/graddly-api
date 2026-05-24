@@ -54,6 +54,14 @@ export const envSchema = z
       .max(3600)
       .default(240),
 
+    CRON_DIGEST_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+
+    CRON_DIGEST_SCHEDULE: z.string().min(1).default('0 8 * * 1'),
+
     QUEUE_OPS_ENABLED: z
       .string()
       .optional()

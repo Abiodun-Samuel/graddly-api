@@ -4,6 +4,9 @@ export const QUEUE_EMAIL = 'email';
 /** Queue for digest notifications (Phase G). */
 export const QUEUE_DIGEST = 'digest';
 
+/** Weekly OTJ digest job (domain wiring in Phase M). */
+export const DIGEST_JOB_WEEKLY_OTJ = 'weekly-otj-digest';
+
 /** Queue for async PDF generation (Phase J). */
 export const QUEUE_PDF = 'pdf';
 

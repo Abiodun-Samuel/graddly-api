@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { EmailService } from '../email/email.service.js';
+import { EmailDispatchService } from '../email/email-dispatch.service.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
@@ -49,7 +49,7 @@ describe('InvitationsService', () => {
       scan: jest.fn().mockResolvedValue(['0', []]),
     })),
   };
-  const emailService = { sendEmail: jest.fn() };
+  const emailDispatch = { enqueue: jest.fn() };
   const config = {
     get: jest.fn((_k: string, def?: number) => def ?? 604_800),
   };
@@ -127,7 +127,7 @@ describe('InvitationsService', () => {
         InvitationsService,
         { provide: ConfigService, useValue: config },
         { provide: RedisService, useValue: redis },
-        { provide: EmailService, useValue: emailService },
+        { provide: EmailDispatchService, useValue: emailDispatch },
         { provide: getRepositoryToken(Invitation), useValue: invitationRepo },
         {
           provide: getRepositoryToken(OrganisationMembership),

@@ -15,7 +15,7 @@ import { v4 as uuidV4 } from 'uuid';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto.js';
 import { buildPaginationMeta } from '../common/pagination/build-pagination-meta.js';
 import { PaginatedResult } from '../common/pagination/paginated-result.js';
-import { EmailService } from '../email/email.service.js';
+import { EmailDispatchService } from '../email/email-dispatch.service.js';
 import { InvitationAcceptEmail } from '../email/payloads/invitation-accept.email.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
@@ -39,7 +39,7 @@ export class InvitationsService {
   constructor(
     private readonly config: ConfigService,
     private readonly redis: RedisService,
-    private readonly emailService: EmailService,
+    private readonly emailDispatch: EmailDispatchService,
     @InjectRepository(Invitation)
     private readonly invitationRepo: Repository<Invitation>,
     @InjectRepository(OrganisationMembership)
@@ -315,7 +315,7 @@ export class InvitationsService {
     );
 
     try {
-      await this.emailService.sendEmail(
+      await this.emailDispatch.enqueue(
         InvitationAcceptEmail.create(this.config, {
           to: invitation.email,
           firstName,

@@ -49,6 +49,8 @@ export default registerAs('app', () => {
       healthSchedule: e.CRON_HEALTH_SCHEDULE,
       lockEnabled: e.CRON_LOCK_ENABLED,
       lockTtlSeconds: e.CRON_LOCK_TTL_SECONDS,
+      digestEnabled: e.CRON_DIGEST_ENABLED,
+      digestSchedule: e.CRON_DIGEST_SCHEDULE,
     },
     queueOps: {
       enabled: e.QUEUE_OPS_ENABLED,

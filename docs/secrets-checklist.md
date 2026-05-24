@@ -13,6 +13,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | BullMQ key prefix | `BULLMQ_PREFIX` | Optional; default `graddly`. Namespace for job queue keys in Redis. API and worker processes must share the same value. |
 | Cron jobs | `CRON_ENABLED`, `CRON_HEALTH_SCHEDULE` | Crons run in the **worker** process only. Set `CRON_ENABLED=false` to disable. Default health sample: every 5 minutes (`*/5 * * * *`). |
 | Cron distributed lock | `CRON_LOCK_ENABLED`, `CRON_LOCK_TTL_SECONDS` | When multiple worker replicas run, Redis `SET NX` ensures one instance per tick. Default TTL 240s; set below the cron interval. Disable with `CRON_LOCK_ENABLED=false` only for local debugging. |
+| Digest cron (skeleton) | `CRON_DIGEST_ENABLED`, `CRON_DIGEST_SCHEDULE` | Disabled by default. When enabled in the worker, logs a tick only until Phase M OTJ domain exists. Default schedule: Monday 08:00 UTC (`0 8 * * 1`). |
 | Queue ops (failed jobs) | `QUEUE_OPS_ENABLED`, `QUEUE_OPS_API_KEY` | Internal API at `/api/v1/ops/queues` (list failed jobs, retry, remove). Min **32** characters for the key when enabled in production/staging. Send header `X-Queue-Ops-Api-Key`. |
 
 ## Strongly recommended
@@ -30,6 +31,7 @@ Use this when provisioning or rotating credentials for **staging** and **product
 | Email provider | `EMAIL_PROVIDER` | Set to `resend` in deployed environments that send transactional email. |
 | Resend API key | `RESEND_API_KEY` | From the [Resend dashboard](https://resend.com/api-keys). |
 | From address | `RESEND_FROM_EMAIL` | Must use a verified domain (e.g. `Graddly <noreply@yourdomain.com>`). |
+| Email dispatch | BullMQ `email` queue | Auth and invitations enqueue jobs; the **worker** process sends via Resend. Failed jobs appear in the ops API (`QUEUE_OPS_*`). |
 | Frontend origin | `FRONTEND_BASE_URL` | Base URL for links in transactional email (see [password-reset.md](./password-reset.md), [email-verification.md](./email-verification.md)). |
 | Verification TTL | `EMAIL_VERIFICATION_TOKEN_TTL_SECONDS` | Optional; default 24 hours. |
 | Invitation accept token cap | `INVITATION_ACCEPT_TOKEN_TTL_SECONDS` | Optional; default 7 days; Redis TTL is clamped to invite `expiresAt`. See [invitations.md](./invitations.md). |

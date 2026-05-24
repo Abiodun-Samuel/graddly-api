@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { EmailService } from '../../email/email.service.js';
+import { EmailDispatchService } from '../../email/email-dispatch.service.js';
 import { OrganisationMembership } from '../../organisations/entities/organisation-membership.entity.js';
 import { OrganisationRole } from '../../organisations/organisation-role.enum.js';
 import { RedisService } from '../../redis/redis.service.js';
@@ -83,8 +83,8 @@ const mockRedisService = {
   del: jest.fn(),
 };
 
-const mockEmailService = {
-  sendEmail: jest.fn(),
+const mockEmailDispatch = {
+  enqueue: jest.fn(),
 };
 
 const mockMembershipRepo = {
@@ -107,7 +107,7 @@ describe('AuthService', () => {
           provide: RefreshTokenService,
           useValue: mockRefreshTokenService,
         },
-        { provide: EmailService, useValue: mockEmailService },
+        { provide: EmailDispatchService, useValue: mockEmailDispatch },
         {
           provide: getRepositoryToken(OrganisationMembership),
           useValue: mockMembershipRepo,
@@ -130,7 +130,7 @@ describe('AuthService', () => {
 
     it('should create a user and send verification email without tokens', async () => {
       mockUsersService.create.mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
+      mockEmailDispatch.enqueue.mockResolvedValue(undefined);
 
       await authService.signup(dto);
 
@@ -140,7 +140,7 @@ describe('AuthService', () => {
         mockUser.id,
         86_400,
       );
-      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+      expect(mockEmailDispatch.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({
           to: mockUser.email,
           template: 'email-verification',
@@ -275,7 +275,7 @@ describe('AuthService', () => {
   describe('requestPasswordReset', () => {
     it('stores token and sends email for active user', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
+      mockEmailDispatch.enqueue.mockResolvedValue(undefined);
 
       await authService.requestPasswordReset(mockUser.email);
 
@@ -284,7 +284,7 @@ describe('AuthService', () => {
         mockUser.id,
         3600,
       );
-      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+      expect(mockEmailDispatch.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({
           to: mockUser.email,
           template: 'password-reset',
@@ -298,12 +298,12 @@ describe('AuthService', () => {
       await authService.requestPasswordReset('unknown@example.com');
 
       expect(mockRedisService.set).not.toHaveBeenCalled();
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+      expect(mockEmailDispatch.enqueue).not.toHaveBeenCalled();
     });
 
     it('does not throw when email send fails', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockRejectedValue(new Error('Resend down'));
+      mockEmailDispatch.enqueue.mockRejectedValue(new Error('Resend down'));
 
       await expect(
         authService.requestPasswordReset(mockUser.email),
@@ -381,11 +381,11 @@ describe('AuthService', () => {
   describe('resendVerification', () => {
     it('sends email for active unverified user', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      mockEmailService.sendEmail.mockResolvedValue(undefined);
+      mockEmailDispatch.enqueue.mockResolvedValue(undefined);
 
       await authService.resendVerification(mockUser.email);
 
-      expect(mockEmailService.sendEmail).toHaveBeenCalled();
+      expect(mockEmailDispatch.enqueue).toHaveBeenCalled();
     });
 
     it('does nothing when user is already verified', async () => {
@@ -397,7 +397,7 @@ describe('AuthService', () => {
       await authService.resendVerification(mockUser.email);
 
       expect(mockRedisService.set).not.toHaveBeenCalled();
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+      expect(mockEmailDispatch.enqueue).not.toHaveBeenCalled();
     });
 
     it('does nothing when user is unknown', async () => {
@@ -405,7 +405,7 @@ describe('AuthService', () => {
 
       await authService.resendVerification('unknown@example.com');
 
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+      expect(mockEmailDispatch.enqueue).not.toHaveBeenCalled();
     });
   });
 

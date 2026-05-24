@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { EmailDispatchService } from './email-dispatch.service.js';
 import { EmailLayoutContextService } from './email-layout-context.service.js';
+import { EmailPayloadFactory } from './email-payload.factory.js';
 import { EmailTemplateRendererService } from './email-template-renderer.service.js';
 import { EmailService } from './email.service.js';
 import {
@@ -33,7 +35,9 @@ import { ResendEmailSender } from './providers/resend-email.sender.js';
     EmailLayoutContextService,
     EmailTemplateRendererService,
     EmailService,
+    EmailPayloadFactory,
+    EmailDispatchService,
   ],
-  exports: [EmailService],
+  exports: [EmailService, EmailDispatchService],
 })
 export class EmailModule {}

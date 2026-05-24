@@ -87,8 +87,8 @@ Skip entire phase if ADR chooses **application-level scoping only**.
 |------|--------|----------|-----|----------|
 | `Notification` + `NotificationPreference` entities + migrations | Not started | Phase G | 5 | TBD |
 | In-app notification create/list/mark-read API | Not started | Phase G | 3 | TBD |
-| SendGrid provider: single **transactional** send path + template ID config | Not started | Phase G | 5 | TBD |
-| Event-style dispatch: enqueue **BullMQ** job → SendGrid worker | Not started | Phase G | 5 | TBD |
+| Resend transactional send path + Nunjucks template config | Not started | Phase G | 5 | TBD |
+| Event-style dispatch: enqueue **BullMQ** job → Resend worker | Not started | Phase G | 5 | TBD |
 | Digest queue skeleton (weekly OTJ digest — wire later to domain) | Not started | Phase G | 3 | TBD |
 
 ---

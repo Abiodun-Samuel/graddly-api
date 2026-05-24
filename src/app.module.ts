@@ -29,6 +29,7 @@ import { getEnv, validateEnv } from './config/validate-env.js';
 import { HealthModule } from './health/health.module.js';
 import { InvitationsModule } from './invitations/invitations.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -83,6 +84,7 @@ import { UsersModule } from './users/users.module.js';
     AuthModule,
     OrganisationsModule,
     InvitationsModule,
+    NotificationsModule,
     HealthModule,
   ],
   controllers: [AppController],
