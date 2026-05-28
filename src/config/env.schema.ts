@@ -181,6 +181,13 @@ export const envSchema = z
       .transform((v) => v === 'true'),
     CRON_DAS_SYNC_SCHEDULE: z.string().min(1).default('*/15 * * * *'),
 
+    CRON_OTJ_PACE_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+    CRON_OTJ_PACE_SCHEDULE: z.string().min(1).default('0 1 * * *'),
+
     WITHDRAWAL_PUSH_ENDPOINT_URL: z.string().url().optional().default(''),
   })
   .superRefine((data, ctx) => {

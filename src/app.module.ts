@@ -36,6 +36,7 @@ import { InvitationsModule } from './invitations/invitations.module.js';
 import { winstonConfigFactory } from './logger/winston.config.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
+import { OtjModule } from './otj/otj.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { ProgrammesModule } from './programmes/programmes.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -79,6 +80,7 @@ import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.j
     OrganisationsModule,
     InvitationsModule,
     NotificationsModule,
+    OtjModule,
     StorageModule,
     DasModule,
     ProgrammesModule,

@@ -9,7 +9,7 @@ import { ORGANISATION_ID_HEADER } from '../src/common/constants/organisation-hea
 import { configureApp } from '../src/configure-app.js';
 import { EnrolmentStatus } from '../src/enrolments/enums/enrolment-status.enum.js';
 
-import { createVerifiedUser } from './helpers/e2e-http.js';
+import { createVerifiedUser, loginVerifiedUser } from './helpers/e2e-http.js';
 import { buildOrgPayload } from './helpers/e2e-organisation.js';
 import {
   expectFilteredHttpExceptionBody,
@@ -172,6 +172,9 @@ describe('Enrolments + domain APIs (e2e)', () => {
       .set(ORGANISATION_ID_HEADER, orgOneId)
       .expect(200);
     expectPaginatedListEnvelope(apprenticesListRes.body);
+
+    const refreshed = await loginVerifiedUser(app, owner.email, owner.password);
+    owner.accessToken = refreshed.accessToken;
 
     const enrolmentsListRes = await request(app.getHttpServer())
       .get('/api/v1/enrolments')

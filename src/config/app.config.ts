@@ -53,6 +53,8 @@ export default registerAs('app', () => {
       digestSchedule: e.CRON_DIGEST_SCHEDULE,
       dasSyncEnabled: e.CRON_DAS_SYNC_ENABLED,
       dasSyncSchedule: e.CRON_DAS_SYNC_SCHEDULE,
+      otjPaceEnabled: e.CRON_OTJ_PACE_ENABLED,
+      otjPaceSchedule: e.CRON_OTJ_PACE_SCHEDULE,
     },
     queueOps: {
       enabled: e.QUEUE_OPS_ENABLED,
