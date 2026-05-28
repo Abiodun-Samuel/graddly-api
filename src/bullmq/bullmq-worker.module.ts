@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { CommitmentSignature } from '../commitments/entities/commitment-signature.entity.js';
+import { CommitmentStatement } from '../commitments/entities/commitment-statement.entity.js';
 import { DasModule } from '../das/das.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
@@ -32,6 +34,8 @@ import { SystemPingProcessor } from './processors/system-ping.processor.js';
       Review,
       ReviewRecord,
       ReviewSignature,
+      CommitmentStatement,
+      CommitmentSignature,
     ]),
   ],
   providers: [

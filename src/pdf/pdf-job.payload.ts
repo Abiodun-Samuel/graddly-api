@@ -6,4 +6,5 @@ export interface IPdfJobPayload {
   userId: string;
   template: PdfJobTemplate;
   reviewId?: string;
+  statementId?: string;
 }

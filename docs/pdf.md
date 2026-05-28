@@ -50,10 +50,14 @@ Poll `GET` until `status` is `completed` or `failed`. When completed, the respon
 
 Jobs are processed by the **worker** process (`yarn start:worker` or the combined `yarn start`). The `pdf` queue is registered in BullMQ ops when enabled.
 
-## Templates (v1)
+## Templates
 
 | Template | Description |
 |----------|-------------|
 | `hello` | Baseline pdfkit proof document |
+| `review_snapshot` | Review record snapshot (Phase N); enqueued via `POST /api/v1/reviews/:id/snapshot-pdf` |
+| `commitment_snapshot` | Commitment statement snapshot (Phase O); enqueued on `POST /api/v1/commitment-statements/:id/publish` |
 
-More templates (reports, snapshots) will reuse `PdfService` in later phases.
+Review and commitment snapshot jobs accept optional entity ids in the BullMQ payload (`reviewId`, `statementId`). On completion, the worker creates tripartite signature slots and advances status to `awaiting_signatures`.
+
+See [commitments.md](./commitments.md) for the commitment lifecycle.

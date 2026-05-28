@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
 
 import { PdfGenerationProcessor } from '../../bullmq/processors/pdf-generation.processor.js';
+import { CommitmentSignature } from '../../commitments/entities/commitment-signature.entity.js';
+import { CommitmentStatement } from '../../commitments/entities/commitment-statement.entity.js';
 import { PdfGenerationJob } from '../../pdf/entities/pdf-generation-job.entity.js';
 import { PdfJobStatus } from '../../pdf/enums/pdf-job-status.enum.js';
 import { PdfJobTemplate } from '../../pdf/enums/pdf-job-template.enum.js';
@@ -63,6 +65,18 @@ describe('PdfGenerationProcessor', () => {
         },
         {
           provide: getRepositoryToken(ReviewSignature),
+          useValue: {
+            count: jest.fn(),
+            create: jest.fn((v: unknown) => v),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(CommitmentStatement),
+          useValue: { findOne: jest.fn(), save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(CommitmentSignature),
           useValue: {
             count: jest.fn(),
             create: jest.fn((v: unknown) => v),

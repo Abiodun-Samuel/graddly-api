@@ -2,10 +2,9 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { EsignatureService } from '../esignature/esignature.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
-import { PdfJobStatus } from '../pdf/enums/pdf-job-status.enum.js';
+import { SequentialCoSignOrchestrator } from '../signing/sequential-co-sign.orchestrator.js';
 
 import { ReviewSignature } from './entities/review-signature.entity.js';
 import { Review } from './entities/review.entity.js';
@@ -23,11 +22,7 @@ describe('ReviewsCoSignService', () => {
     save: jest.fn(),
   };
   const pdfJobRepo = { findOne: jest.fn() };
-  const esignatureService = {
-    createRecord: jest.fn(),
-    completeSigning: jest.fn(),
-    findOne: jest.fn(),
-  };
+  const coSignOrchestrator = { executeSign: jest.fn() };
   const notificationsService = { createForUser: jest.fn() };
 
   let service: ReviewsCoSignService;
@@ -45,7 +40,10 @@ describe('ReviewsCoSignService', () => {
           provide: getRepositoryToken(PdfGenerationJob),
           useValue: pdfJobRepo,
         },
-        { provide: EsignatureService, useValue: esignatureService },
+        {
+          provide: SequentialCoSignOrchestrator,
+          useValue: coSignOrchestrator,
+        },
         { provide: NotificationsService, useValue: notificationsService },
       ],
     }).compile();
@@ -100,11 +98,9 @@ describe('ReviewsCoSignService', () => {
     });
     signatureRepo.count.mockResolvedValue(3);
     signatureRepo.find.mockResolvedValue(signatures);
-    pdfJobRepo.findOne.mockResolvedValue({
-      id: 'job-1',
-      status: PdfJobStatus.COMPLETED,
-      outputKey: 'orgs/org-1/export/job.pdf',
-    });
+    coSignOrchestrator.executeSign.mockRejectedValue(
+      new ConflictException('Next signer is apprentice'),
+    );
 
     await expect(
       service.sign(
@@ -131,11 +127,9 @@ describe('ReviewsCoSignService', () => {
     });
     signatureRepo.count.mockResolvedValue(3);
     signatureRepo.find.mockResolvedValue(signatures);
-    pdfJobRepo.findOne.mockResolvedValue({
-      id: 'job-1',
-      status: PdfJobStatus.COMPLETED,
-      outputKey: 'orgs/org-1/export/job.pdf',
-    });
+    coSignOrchestrator.executeSign.mockRejectedValue(
+      new ForbiddenException('not assigned'),
+    );
 
     const wrongUser = {
       id: 'u-other',

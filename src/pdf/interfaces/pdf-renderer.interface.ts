@@ -3,6 +3,17 @@ export interface ISignedPdfOptions {
   signerLabel?: string;
 }
 
+export interface ICommitmentSnapshotContent {
+  version: number;
+  apprenticeName: string;
+  trainingPlanSummary: string;
+  employerCommitments: string;
+  apprenticeCommitments: string;
+  providerCommitments: string;
+  weeklyHours?: number;
+  additionalTerms?: string;
+}
+
 export interface IReviewSnapshotContent {
   title: string | null;
   scheduledAt: string;
@@ -24,6 +35,9 @@ export interface IReviewSnapshotContent {
 export interface IPdfRenderer {
   renderHelloPdf(): Promise<Buffer>;
   renderReviewSnapshot(content: IReviewSnapshotContent): Promise<Buffer>;
+  renderCommitmentSnapshot(
+    content: ICommitmentSnapshotContent,
+  ): Promise<Buffer>;
   embedSignature(
     unsignedPdf: Buffer,
     signaturePng: Buffer,

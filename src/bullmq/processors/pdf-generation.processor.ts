@@ -4,6 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Job } from 'bullmq';
 import { Repository } from 'typeorm';
 
+import { CommitmentSignature } from '../../commitments/entities/commitment-signature.entity.js';
+import { CommitmentStatement } from '../../commitments/entities/commitment-statement.entity.js';
+import { CommitmentSignatureStatus } from '../../commitments/enums/commitment-signature-status.enum.js';
+import { CommitmentStatementStatus } from '../../commitments/enums/commitment-statement-status.enum.js';
 import {
   setCurrentOrganisationId,
   setCurrentUserId,
@@ -20,12 +24,17 @@ import { Review } from '../../reviews/entities/review.entity.js';
 import { ReviewSignatureStatus } from '../../reviews/enums/review-signature-status.enum.js';
 import { ReviewSignerParty } from '../../reviews/enums/review-signer-party.enum.js';
 import { ReviewStatus } from '../../reviews/enums/review-status.enum.js';
+import { TripartiteParty } from '../../signing/tripartite-party.enum.js';
 import { StorageObjectCategory } from '../../storage/enums/storage-object-category.enum.js';
 import { StorageKeyBuilder } from '../../storage/storage-key.builder.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { QUEUE_PDF } from '../bullmq.constants.js';
 
-import type { IReviewSnapshotContent } from '../../pdf/interfaces/pdf-renderer.interface.js';
+import type { CommitmentStatementContentDto } from '../../commitments/dto/commitment-statement-content.dto.js';
+import type {
+  ICommitmentSnapshotContent,
+  IReviewSnapshotContent,
+} from '../../pdf/interfaces/pdf-renderer.interface.js';
 import type { IPdfJobPayload } from '../../pdf/pdf-job.payload.js';
 import type { ReviewRecordPayloadDto } from '../../reviews/dto/review-record-payload.dto.js';
 
@@ -45,6 +54,10 @@ export class PdfGenerationProcessor extends WorkerHost {
     private readonly reviewRecordRepo: Repository<ReviewRecord>,
     @InjectRepository(ReviewSignature)
     private readonly reviewSignatureRepo: Repository<ReviewSignature>,
+    @InjectRepository(CommitmentStatement)
+    private readonly commitmentStatementRepo: Repository<CommitmentStatement>,
+    @InjectRepository(CommitmentSignature)
+    private readonly commitmentSignatureRepo: Repository<CommitmentSignature>,
   ) {
     super();
   }
@@ -57,7 +70,8 @@ export class PdfGenerationProcessor extends WorkerHost {
       return;
     }
 
-    const { jobId, organisationId, userId, template, reviewId } = job.data;
+    const { jobId, organisationId, userId, template, reviewId, statementId } =
+      job.data;
     setCurrentUserId(userId);
     setCurrentOrganisationId(organisationId);
     setLastKnownUserIdForGuc(userId);
@@ -78,6 +92,18 @@ export class PdfGenerationProcessor extends WorkerHost {
         );
         buffer = await this.pdfService.renderReviewSnapshot(content);
         filename = `review-snapshot-${reviewId}.pdf`;
+      } else if (template === PdfJobTemplate.COMMITMENT_SNAPSHOT) {
+        if (!statementId) {
+          throw new Error(
+            'statementId is required for commitment_snapshot template',
+          );
+        }
+        const content = await this.buildCommitmentSnapshotContent(
+          organisationId,
+          statementId,
+        );
+        buffer = await this.pdfService.renderCommitmentSnapshot(content);
+        filename = `commitment-snapshot-${statementId}.pdf`;
       } else {
         buffer = await this.pdfService.renderHelloPdf();
         filename = `hello-${jobId}.pdf`;
@@ -106,6 +132,9 @@ export class PdfGenerationProcessor extends WorkerHost {
 
       if (template === PdfJobTemplate.REVIEW_SNAPSHOT && reviewId) {
         await this.prepareReviewSigning(organisationId, reviewId);
+      }
+      if (template === PdfJobTemplate.COMMITMENT_SNAPSHOT && statementId) {
+        await this.prepareCommitmentSigning(organisationId, statementId);
       }
     } catch (error) {
       const message =
@@ -146,6 +175,81 @@ export class PdfGenerationProcessor extends WorkerHost {
       wellbeingScore: payload?.wellbeing?.score,
       wellbeingNotes: payload?.wellbeing?.notes,
     };
+  }
+
+  private async buildCommitmentSnapshotContent(
+    organisationId: string,
+    statementId: string,
+  ): Promise<ICommitmentSnapshotContent> {
+    const statement = await this.commitmentStatementRepo.findOne({
+      where: { id: statementId, organisationId },
+      relations: ['group', 'group.apprentice'],
+    });
+    if (!statement) {
+      throw new Error('Commitment statement not found for snapshot');
+    }
+    const content =
+      statement.content as unknown as CommitmentStatementContentDto;
+    const apprentice = statement.group?.apprentice;
+    return {
+      version: statement.version,
+      apprenticeName: apprentice
+        ? `${apprentice.firstName} ${apprentice.lastName}`
+        : 'Apprentice',
+      trainingPlanSummary: content.trainingPlanSummary,
+      employerCommitments: content.employerCommitments,
+      apprenticeCommitments: content.apprenticeCommitments,
+      providerCommitments: content.providerCommitments,
+      weeklyHours: content.weeklyHours,
+      additionalTerms: content.additionalTerms,
+    };
+  }
+
+  private async prepareCommitmentSigning(
+    organisationId: string,
+    statementId: string,
+  ): Promise<void> {
+    const statement = await this.commitmentStatementRepo.findOne({
+      where: { id: statementId, organisationId },
+    });
+    if (!statement) return;
+
+    const existing = await this.commitmentSignatureRepo.count({
+      where: { statementId },
+    });
+    if (existing === 0) {
+      const parties = [
+        {
+          party: TripartiteParty.APPRENTICE,
+          signerUserId: statement.apprenticeUserId,
+        },
+        {
+          party: TripartiteParty.TUTOR,
+          signerUserId: statement.tutorUserId,
+        },
+        {
+          party: TripartiteParty.EMPLOYER_MANAGER,
+          signerUserId: statement.employerManagerUserId,
+        },
+      ];
+      await this.commitmentSignatureRepo.save(
+        parties.map((p, index) =>
+          this.commitmentSignatureRepo.create({
+            organisationId,
+            statementId,
+            party: p.party,
+            signOrder: index + 1,
+            signerUserId: p.signerUserId,
+            status: CommitmentSignatureStatus.PENDING,
+          }),
+        ),
+      );
+    }
+
+    if (statement.status === CommitmentStatementStatus.SUBMITTED) {
+      statement.status = CommitmentStatementStatus.AWAITING_SIGNATURES;
+      await this.commitmentStatementRepo.save(statement);
+    }
   }
 
   private async prepareReviewSigning(

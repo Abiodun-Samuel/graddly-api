@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type {
+  ICommitmentSnapshotContent,
   IPdfRenderer,
   IReviewSnapshotContent,
   ISignedPdfOptions,
@@ -17,6 +18,12 @@ export class NoopPdfRenderer implements IPdfRenderer {
   }
 
   renderReviewSnapshot(_content: IReviewSnapshotContent): Promise<Buffer> {
+    return Promise.resolve(MINIMAL_PDF);
+  }
+
+  renderCommitmentSnapshot(
+    _content: ICommitmentSnapshotContent,
+  ): Promise<Buffer> {
     return Promise.resolve(MINIMAL_PDF);
   }
 

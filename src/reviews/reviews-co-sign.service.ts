@@ -1,19 +1,20 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { CreateSignatureRecordDto } from '../esignature/dto/create-signature-record.dto.js';
-import { EsignatureService } from '../esignature/esignature.service.js';
 import { NotificationType } from '../notifications/enums/notification-type.enum.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
 import { PdfJobStatus } from '../pdf/enums/pdf-job-status.enum.js';
+import { SequentialCoSignOrchestrator } from '../signing/sequential-co-sign.orchestrator.js';
+import {
+  TripartiteParty,
+  TRIPARTITE_PARTY_ORDER,
+} from '../signing/tripartite-party.enum.js';
 
 import { SignReviewResponseDto } from './dto/sign-review-response.dto.js';
 import { SignReviewDto } from './dto/sign-review.dto.js';
@@ -25,12 +26,6 @@ import { ReviewStatus } from './enums/review-status.enum.js';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
 
-const PARTY_ORDER: ReviewSignerParty[] = [
-  ReviewSignerParty.APPRENTICE,
-  ReviewSignerParty.TUTOR,
-  ReviewSignerParty.EMPLOYER_MANAGER,
-];
-
 @Injectable()
 export class ReviewsCoSignService {
   constructor(
@@ -40,7 +35,7 @@ export class ReviewsCoSignService {
     private readonly signatureRepo: Repository<ReviewSignature>,
     @InjectRepository(PdfGenerationJob)
     private readonly pdfJobRepo: Repository<PdfGenerationJob>,
-    private readonly esignatureService: EsignatureService,
+    private readonly coSignOrchestrator: SequentialCoSignOrchestrator,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -73,107 +68,57 @@ export class ReviewsCoSignService {
         'Review is not ready for signing; ensure snapshot PDF is complete',
       );
     }
-    review.status = refreshed.status;
 
     const signatures = await this.signatureRepo.find({
       where: { reviewId, organisationId },
       order: { signOrder: 'ASC' },
     });
 
-    const next = signatures.find(
-      (s) => s.status === ReviewSignatureStatus.PENDING,
-    );
-    if (!next) {
-      throw new ConflictException('All parties have already signed');
-    }
-    if (next.party !== dto.party) {
-      throw new ConflictException(
-        `Next signer is ${next.party}, not ${dto.party}`,
-      );
-    }
-    if (next.signerUserId !== user.id && !this.isAdmin(user)) {
-      throw new ForbiddenException(
-        'You are not the assigned signer for this party',
-      );
-    }
-
-    const createDto: CreateSignatureRecordDto = {
-      signatureImageKey: dto.signatureImageKey,
-    };
-
-    if (next.signOrder === 1) {
-      if (!review.snapshotPdfJobId) {
-        throw new ConflictException(
-          'Review snapshot PDF has not been requested',
-        );
-      }
-      const pdfJob = await this.pdfJobRepo.findOne({
-        where: { id: review.snapshotPdfJobId, organisationId },
-      });
-      if (
-        !pdfJob ||
-        pdfJob.status !== PdfJobStatus.COMPLETED ||
-        !pdfJob.outputKey
-      ) {
-        throw new ConflictException('Review snapshot PDF is not ready');
-      }
-      createDto.pdfJobId = pdfJob.id;
-    } else {
-      const previous = signatures.find(
-        (s) => s.signOrder === next.signOrder - 1,
-      );
-      if (!previous?.signatureRecordId) {
-        throw new ConflictException('Previous party has not signed');
-      }
-      const prevRecord = await this.esignatureService.findOne(
-        user,
-        previous.signatureRecordId,
-      );
-      if (!prevRecord.signedPdfKey) {
-        throw new ConflictException('Previous signed PDF is not available');
-      }
-      createDto.sourcePdfKey = prevRecord.signedPdfKey;
-    }
-
-    const record = await this.esignatureService.createRecord(
+    const result = await this.coSignOrchestrator.executeSign({
       user,
-      createDto,
+      organisationId,
+      requestedParty: dto.party as unknown as TripartiteParty,
+      signatureImageKey: dto.signatureImageKey,
       clientIp,
       userAgent,
-    );
-    const signed = await this.esignatureService.completeSigning(
-      user,
-      record.id,
-    );
+      snapshotPdfJobId: refreshed.snapshotPdfJobId,
+      slots: signatures.map((s) => ({
+        party: s.party as unknown as TripartiteParty,
+        signOrder: s.signOrder,
+        signerUserId: s.signerUserId,
+        status:
+          s.status === ReviewSignatureStatus.SIGNED ? 'signed' : 'pending',
+        signatureRecordId: s.signatureRecordId,
+      })),
+    });
 
-    next.status = ReviewSignatureStatus.SIGNED;
-    next.signatureRecordId = record.id;
-    await this.signatureRepo.save(next);
+    const nextSlot = signatures.find((s) => s.party === dto.party);
+    if (nextSlot) {
+      nextSlot.status = ReviewSignatureStatus.SIGNED;
+      nextSlot.signatureRecordId = result.signatureRecordId;
+      await this.signatureRepo.save(nextSlot);
+    }
 
     const remaining = signatures.filter(
-      (s) => s.id !== next.id && s.status === ReviewSignatureStatus.PENDING,
+      (s) =>
+        s.id !== nextSlot?.id && s.status === ReviewSignatureStatus.PENDING,
     );
 
     if (remaining.length === 0) {
-      review.status = ReviewStatus.COMPLETED;
-      review.finalSignedPdfKey = signed.signedPdfKey;
-      await this.reviewRepo.save(review);
-      await this.notifyCompletion(review);
-    } else if (review.status !== ReviewStatus.AWAITING_SIGNATURES) {
-      review.status = ReviewStatus.AWAITING_SIGNATURES;
-      await this.reviewRepo.save(review);
+      refreshed.status = ReviewStatus.COMPLETED;
+      refreshed.finalSignedPdfKey = result.signedPdfKey;
+      await this.reviewRepo.save(refreshed);
+      await this.notifyCompletion(refreshed);
     }
 
-    const nextPending = remaining.sort((a, b) => a.signOrder - b.signOrder)[0];
-
     return {
-      reviewId: review.id,
-      party: next.party,
-      reviewStatus: review.status,
-      signedPdfKey: signed.signedPdfKey,
-      downloadUrl: signed.downloadUrl,
-      downloadExpiresAt: signed.downloadExpiresAt,
-      nextParty: nextPending?.party ?? null,
+      reviewId: refreshed.id,
+      party: dto.party,
+      reviewStatus: refreshed.status,
+      signedPdfKey: result.signedPdfKey,
+      downloadUrl: result.downloadUrl,
+      downloadExpiresAt: result.downloadExpiresAt,
+      nextParty: (result.nextParty as ReviewSignerParty | null) ?? null,
     };
   }
 
@@ -203,11 +148,11 @@ export class ReviewsCoSignService {
     });
     if (existing > 0) return;
 
-    const slots = PARTY_ORDER.map((party, index) =>
+    const slots = TRIPARTITE_PARTY_ORDER.map((party, index) =>
       this.signatureRepo.create({
         organisationId: review.organisationId,
         reviewId: review.id,
-        party,
+        party: party as unknown as ReviewSignerParty,
         signOrder: index + 1,
         signerUserId: this.signerIdForParty(review, party),
         status: ReviewSignatureStatus.PENDING,
@@ -216,23 +161,15 @@ export class ReviewsCoSignService {
     await this.signatureRepo.save(slots);
   }
 
-  private signerIdForParty(review: Review, party: ReviewSignerParty): string {
+  private signerIdForParty(review: Review, party: TripartiteParty): string {
     switch (party) {
-      case ReviewSignerParty.APPRENTICE:
+      case TripartiteParty.APPRENTICE:
         return review.apprenticeUserId;
-      case ReviewSignerParty.TUTOR:
+      case TripartiteParty.TUTOR:
         return review.tutorUserId;
-      case ReviewSignerParty.EMPLOYER_MANAGER:
+      case TripartiteParty.EMPLOYER_MANAGER:
         return review.employerManagerUserId;
     }
-  }
-
-  private isAdmin(user: AuthenticatedUser): boolean {
-    const roles = user.roles ?? [];
-    return (
-      roles.includes(OrganisationRole.OWNER) ||
-      roles.includes(OrganisationRole.ADMIN)
-    );
   }
 
   private async notifyCompletion(review: Review): Promise<void> {

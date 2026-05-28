@@ -1,4 +1,7 @@
 import { Apprentice } from '../apprentices/entities/apprentice.entity.js';
+import { CommitmentSignature } from '../commitments/entities/commitment-signature.entity.js';
+import { CommitmentStatementGroup } from '../commitments/entities/commitment-statement-group.entity.js';
+import { CommitmentStatement } from '../commitments/entities/commitment-statement.entity.js';
 import { DasLevyBalance } from '../das/entities/das-levy-balance.entity.js';
 import { Enrolment } from '../enrolments/entities/enrolment.entity.js';
 import { Invitation } from '../invitations/entities/invitation.entity.js';
@@ -25,6 +28,9 @@ export type OrganisationScopedEntity =
   | Review
   | ReviewRecord
   | ReviewSignature
+  | CommitmentStatementGroup
+  | CommitmentStatement
+  | CommitmentSignature
   | WithdrawalCompletionPush
   | (Record<string, unknown> & {
       organisationId?: string;
@@ -62,6 +68,9 @@ export function resolveAuditOrganisationId(
     entityType === 'reviews' ||
     entityType === 'review_records' ||
     entityType === 'review_signatures' ||
+    entityType === 'commitment_statement_groups' ||
+    entityType === 'commitment_statements' ||
+    entityType === 'commitment_signatures' ||
     entityType === 'withdrawal_completion_pushes'
   ) {
     const scoped = entity as { organisationId?: string };
@@ -89,6 +98,9 @@ export function isAuditedEntity(entity: unknown): boolean {
     ctor === Review ||
     ctor === ReviewRecord ||
     ctor === ReviewSignature ||
+    ctor === CommitmentStatementGroup ||
+    ctor === CommitmentStatement ||
+    ctor === CommitmentSignature ||
     ctor === WithdrawalCompletionPush
   );
 }

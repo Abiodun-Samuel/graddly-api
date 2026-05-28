@@ -1,3 +1,5 @@
+import { CommitmentSignature } from '../commitments/entities/commitment-signature.entity.js';
+import { CommitmentSignatureStatus } from '../commitments/enums/commitment-signature-status.enum.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
 import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
@@ -168,6 +170,39 @@ describe('AuditLogSubscriber', () => {
             to: ReviewSignatureStatus.SIGNED,
           },
         }) as Record<string, { from?: unknown; to?: unknown }>,
+      }),
+    );
+  });
+
+  it('afterUpdate writes audit row for commitment_signatures', async () => {
+    const before = Object.assign(new CommitmentSignature(), {
+      id: 'csig-1',
+      organisationId: 'org-1',
+      statementId: 'stmt-1',
+      status: CommitmentSignatureStatus.PENDING,
+      signatureRecordId: null,
+    });
+    const entity = Object.assign(new CommitmentSignature(), {
+      ...before,
+      status: CommitmentSignatureStatus.SIGNED,
+      signatureRecordId: 'esign-1',
+    });
+
+    const event = {
+      entity,
+      databaseEntity: { ...before },
+      metadata: { tableName: 'commitment_signatures' },
+      manager,
+    } as unknown as UpdateEvent<object>;
+
+    await subscriber.afterUpdate(event);
+
+    expect(insert).toHaveBeenCalledWith(
+      AuditLogEntry,
+      expect.objectContaining({
+        entityType: 'commitment_signatures',
+        entityId: 'csig-1',
+        action: AuditAction.UPDATE,
       }),
     );
   });

@@ -4,10 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { Enrolment } from '../enrolments/entities/enrolment.entity.js';
-import { EsignatureModule } from '../esignature/esignature.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
 import { PdfModule } from '../pdf/pdf.module.js';
+import { SigningModule } from '../signing/signing.module.js';
 import { User } from '../users/entities/user.entity.js';
 
 import { ReviewRecord } from './entities/review-record.entity.js';
@@ -26,7 +26,7 @@ import { ReviewsService } from './reviews.service.js';
   imports: [
     AuthModule,
     EmailModule,
-    EsignatureModule,
+    SigningModule,
     NotificationsModule,
     PdfModule,
     TypeOrmModule.forFeature([

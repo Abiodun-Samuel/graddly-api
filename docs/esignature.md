@@ -52,7 +52,11 @@ Reviews use `POST /api/v1/reviews/:id/sign` with `{ party, signatureImageKey }`.
 1. Party 1 signs the completed `review_snapshot` PDF job output (`pdfJobId`).
 2. Parties 2 and 3 sign the cumulative PDF from the previous party (`sourcePdfKey`).
 
-Tripartite **commitments** (Phase O) remain a separate workflow.
+## Commitment co-sign (Phase O)
+
+Commitments use `POST /api/v1/commitment-statements/:id/sign` with the same `{ party, signatureImageKey }` contract and sequential order as reviews. Party 1 signs the `commitment_snapshot` PDF; parties 2 and 3 chain via `sourcePdfKey`.
+
+Shared orchestration lives in `src/signing/sequential-co-sign.orchestrator.ts`. See [commitments.md](./commitments.md).
 
 ## Out of scope (later)
 

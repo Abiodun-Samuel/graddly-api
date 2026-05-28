@@ -19,6 +19,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { OidcSessionMiddleware } from './auth/oidc/middleware/oidc-session.middleware.js';
 import { BullmqOpsModule } from './bullmq/bullmq-ops.module.js';
 import { BullmqModule } from './bullmq/bullmq.module.js';
+import { CommitmentsModule } from './commitments/commitments.module.js';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard.js';
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor.js';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware.js';
@@ -83,6 +84,7 @@ import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.j
     NotificationsModule,
     OtjModule,
     ReviewsModule,
+    CommitmentsModule,
     StorageModule,
     DasModule,
     ProgrammesModule,

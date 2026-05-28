@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 
 import type {
+  ICommitmentSnapshotContent,
   IPdfRenderer,
   IReviewSnapshotContent,
   ISignedPdfOptions,
@@ -41,6 +42,35 @@ export class PdfKitPdfRenderer implements IPdfRenderer {
       doc.fontSize(24).text('Hello from Graddly PDF', { align: 'center' });
       doc.moveDown();
       doc.fontSize(12).text('Phase J pdfkit baseline', { align: 'center' });
+    });
+  }
+
+  renderCommitmentSnapshot(
+    content: ICommitmentSnapshotContent,
+  ): Promise<Buffer> {
+    return renderToBuffer((doc) => {
+      doc.fontSize(20).text('Commitment statement', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Apprentice: ${content.apprenticeName}`);
+      doc.text(`Version: ${content.version}`);
+      doc.moveDown().fontSize(14).text('Training plan summary');
+      doc.fontSize(11).text(content.trainingPlanSummary);
+      doc.moveDown().fontSize(14).text('Employer commitments');
+      doc.fontSize(11).text(content.employerCommitments);
+      doc.moveDown().fontSize(14).text('Apprentice commitments');
+      doc.fontSize(11).text(content.apprenticeCommitments);
+      doc.moveDown().fontSize(14).text('Provider commitments');
+      doc.fontSize(11).text(content.providerCommitments);
+      if (content.weeklyHours !== undefined) {
+        doc
+          .moveDown()
+          .fontSize(11)
+          .text(`Weekly hours: ${content.weeklyHours}`);
+      }
+      if (content.additionalTerms) {
+        doc.moveDown().fontSize(14).text('Additional terms');
+        doc.fontSize(11).text(content.additionalTerms);
+      }
     });
   }
 

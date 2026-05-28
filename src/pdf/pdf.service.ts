@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { PDF_RENDERER } from './pdf.constants.js';
 
 import type {
+  ICommitmentSnapshotContent,
   IPdfRenderer,
   IReviewSnapshotContent,
   ISignedPdfOptions,
@@ -18,6 +19,12 @@ export class PdfService {
 
   renderReviewSnapshot(content: IReviewSnapshotContent): Promise<Buffer> {
     return this.renderer.renderReviewSnapshot(content);
+  }
+
+  renderCommitmentSnapshot(
+    content: ICommitmentSnapshotContent,
+  ): Promise<Buffer> {
+    return this.renderer.renderCommitmentSnapshot(content);
   }
 
   embedSignature(
