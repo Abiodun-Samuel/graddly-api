@@ -39,6 +39,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { OtjModule } from './otj/otj.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
+import { PortfolioModule } from './portfolio/portfolio.module.js';
 import { ProgrammesModule } from './programmes/programmes.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
@@ -85,6 +86,7 @@ import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.j
     OtjModule,
     ReviewsModule,
     CommitmentsModule,
+    PortfolioModule,
     StorageModule,
     DasModule,
     ProgrammesModule,

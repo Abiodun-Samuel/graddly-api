@@ -6,4 +6,5 @@ export enum NotificationType {
   OTJ = 'otj',
   REVIEW = 'review',
   COMMITMENT = 'commitment',
+  PORTFOLIO = 'portfolio',
 }

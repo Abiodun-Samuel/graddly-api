@@ -202,6 +202,13 @@ export const envSchema = z
       .transform((v) => v === 'true'),
     CRON_REVIEW_REMINDERS_SCHEDULE: z.string().min(1).default('0 7 * * *'),
 
+    PORTFOLIO_HEATMAP_CACHE_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(86_400)
+      .default(0),
+
     WITHDRAWAL_PUSH_ENDPOINT_URL: z.string().url().optional().default(''),
   })
   .superRefine((data, ctx) => {

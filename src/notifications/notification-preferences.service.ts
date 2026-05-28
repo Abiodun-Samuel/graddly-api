@@ -13,6 +13,7 @@ const DEFAULT_TYPES = [
   NotificationType.OTJ,
   NotificationType.REVIEW,
   NotificationType.COMMITMENT,
+  NotificationType.PORTFOLIO,
 ] as const;
 
 const DEFAULT_CHANNELS = [

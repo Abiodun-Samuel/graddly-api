@@ -8,6 +8,10 @@ import { Invitation } from '../invitations/entities/invitation.entity.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { OtjLogEntry } from '../otj/entities/otj-log-entry.entity.js';
+import { EnrolmentKsbCoverage } from '../portfolio/entities/enrolment-ksb-coverage.entity.js';
+import { KsEvidenceItem } from '../portfolio/entities/ks-evidence-item.entity.js';
+import { KsEvidenceKsbMapping } from '../portfolio/entities/ks-evidence-ksb-mapping.entity.js';
+import { KsbDefinition } from '../portfolio/entities/ksb-definition.entity.js';
 import { Programme } from '../programmes/entities/programme.entity.js';
 import { Standard } from '../programmes/entities/standard.entity.js';
 import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
@@ -31,6 +35,10 @@ export type OrganisationScopedEntity =
   | CommitmentStatementGroup
   | CommitmentStatement
   | CommitmentSignature
+  | KsbDefinition
+  | KsEvidenceItem
+  | KsEvidenceKsbMapping
+  | EnrolmentKsbCoverage
   | WithdrawalCompletionPush
   | (Record<string, unknown> & {
       organisationId?: string;
@@ -71,6 +79,10 @@ export function resolveAuditOrganisationId(
     entityType === 'commitment_statement_groups' ||
     entityType === 'commitment_statements' ||
     entityType === 'commitment_signatures' ||
+    entityType === 'ksb_definitions' ||
+    entityType === 'ks_evidence_items' ||
+    entityType === 'ks_evidence_ksb_mappings' ||
+    entityType === 'enrolment_ksb_coverage' ||
     entityType === 'withdrawal_completion_pushes'
   ) {
     const scoped = entity as { organisationId?: string };
@@ -101,6 +113,10 @@ export function isAuditedEntity(entity: unknown): boolean {
     ctor === CommitmentStatementGroup ||
     ctor === CommitmentStatement ||
     ctor === CommitmentSignature ||
+    ctor === KsbDefinition ||
+    ctor === KsEvidenceItem ||
+    ctor === KsEvidenceKsbMapping ||
+    ctor === EnrolmentKsbCoverage ||
     ctor === WithdrawalCompletionPush
   );
 }

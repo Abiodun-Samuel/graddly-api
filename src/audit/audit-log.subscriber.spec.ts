@@ -1,6 +1,8 @@
 import { CommitmentSignature } from '../commitments/entities/commitment-signature.entity.js';
 import { CommitmentSignatureStatus } from '../commitments/enums/commitment-signature-status.enum.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
+import { KsEvidenceItem } from '../portfolio/entities/ks-evidence-item.entity.js';
+import { KsEvidenceStatus } from '../portfolio/enums/ks-evidence-status.enum.js';
 import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
 import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
@@ -202,6 +204,36 @@ describe('AuditLogSubscriber', () => {
       expect.objectContaining({
         entityType: 'commitment_signatures',
         entityId: 'csig-1',
+        action: AuditAction.UPDATE,
+      }),
+    );
+  });
+
+  it('afterUpdate writes audit row for ks_evidence_items', async () => {
+    const before = Object.assign(new KsEvidenceItem(), {
+      id: 'ev-1',
+      organisationId: 'org-1',
+      status: KsEvidenceStatus.DRAFT,
+    });
+    const entity = Object.assign(new KsEvidenceItem(), {
+      ...before,
+      status: KsEvidenceStatus.SUBMITTED,
+    });
+
+    const event = {
+      entity,
+      databaseEntity: { ...before },
+      metadata: { tableName: 'ks_evidence_items' },
+      manager,
+    } as unknown as UpdateEvent<object>;
+
+    await subscriber.afterUpdate(event);
+
+    expect(insert).toHaveBeenCalledWith(
+      AuditLogEntry,
+      expect.objectContaining({
+        entityType: 'ks_evidence_items',
+        entityId: 'ev-1',
         action: AuditAction.UPDATE,
       }),
     );

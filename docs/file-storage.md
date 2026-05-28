@@ -59,5 +59,5 @@ Validation runs when requesting an upload URL. S3 presigned PUT binds `Content-T
 ## Security notes
 
 - Cross-organisation download is blocked by key prefix checks.
-- Learner membership is **not** validated yet (Phase P); `learnerId` is format-checked only.
+- When creating KSB file evidence, the API validates that the storage key belongs to the organisation and matches `learners/{apprenticeId}/evidence/`. Generic presign still only format-checks `learnerId`.
 - Use short TTLs in production; rotate AWS credentials via your secret manager.

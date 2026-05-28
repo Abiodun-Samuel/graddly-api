@@ -6,6 +6,8 @@ import { OrganisationMembership } from '../organisations/entities/organisation-m
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { OtjLogEntry } from '../otj/entities/otj-log-entry.entity.js';
+import { KsEvidenceItem } from '../portfolio/entities/ks-evidence-item.entity.js';
+import { KsbDefinition } from '../portfolio/entities/ksb-definition.entity.js';
 import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
 import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
 import { Review } from '../reviews/entities/review.entity.js';
@@ -94,6 +96,20 @@ describe('audit-organisation-id.resolver', () => {
     );
   });
 
+  it('resolves organisation id for portfolio entities', () => {
+    const ksb = Object.assign(new KsbDefinition(), {
+      organisationId: 'org-ksb',
+    });
+    expect(resolveAuditOrganisationId(ksb, 'ksb_definitions')).toBe('org-ksb');
+
+    const evidence = Object.assign(new KsEvidenceItem(), {
+      organisationId: 'org-ev',
+    });
+    expect(resolveAuditOrganisationId(evidence, 'ks_evidence_items')).toBe(
+      'org-ev',
+    );
+  });
+
   it('resolves organisation id for withdrawal completion pushes', () => {
     const push = Object.assign(new WithdrawalCompletionPush(), {
       organisationId: 'org-push',
@@ -113,6 +129,8 @@ describe('audit-organisation-id.resolver', () => {
     expect(isAuditedEntity(new CommitmentStatementGroup())).toBe(true);
     expect(isAuditedEntity(new CommitmentStatement())).toBe(true);
     expect(isAuditedEntity(new CommitmentSignature())).toBe(true);
+    expect(isAuditedEntity(new KsbDefinition())).toBe(true);
+    expect(isAuditedEntity(new KsEvidenceItem())).toBe(true);
     expect(isAuditedEntity(new WithdrawalCompletionPush())).toBe(true);
     expect(isAuditedEntity({ id: 'x' })).toBe(false);
   });

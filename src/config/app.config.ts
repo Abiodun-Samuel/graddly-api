@@ -141,5 +141,8 @@ export default registerAs('app', () => {
     withdrawalPush: {
       endpointUrl: e.WITHDRAWAL_PUSH_ENDPOINT_URL,
     },
+    portfolio: {
+      heatmapCacheTtlSeconds: e.PORTFOLIO_HEATMAP_CACHE_TTL_SECONDS,
+    },
   };
 });
