@@ -41,6 +41,7 @@ import { ProgrammesModule } from './programmes/programmes.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
+import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.js';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { UsersModule } from './users/users.module.js';
     ProgrammesModule,
     ApprenticesModule,
     EnrolmentsModule,
+    WithdrawalPushModule,
     PdfModule,
     EsignatureModule,
     AuditModule,

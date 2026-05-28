@@ -6,6 +6,8 @@ import { EmailModule } from '../email/email.module.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
 import { PdfModule } from '../pdf/pdf.module.js';
 import { StorageModule } from '../storage/storage.module.js';
+import { WithdrawalPushModule } from '../withdrawal-push/withdrawal-push.module.js';
+import { WithdrawalPushProcessor } from '../withdrawal-push/withdrawal-push.processor.js';
 
 import { BullmqModule } from './bullmq.module.js';
 import { DasSyncProcessor } from './processors/das-sync.processor.js';
@@ -21,6 +23,7 @@ import { SystemPingProcessor } from './processors/system-ping.processor.js';
     EmailModule,
     PdfModule,
     StorageModule,
+    WithdrawalPushModule,
     TypeOrmModule.forFeature([PdfGenerationJob]),
   ],
   providers: [
@@ -29,6 +32,7 @@ import { SystemPingProcessor } from './processors/system-ping.processor.js';
     EmailSendProcessor,
     DigestProcessor,
     PdfGenerationProcessor,
+    WithdrawalPushProcessor,
   ],
 })
 export class BullmqWorkerModule {}

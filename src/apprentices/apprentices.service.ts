@@ -9,10 +9,12 @@ import { Repository } from 'typeorm';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto.js';
 import { buildPaginationMeta } from '../common/pagination/build-pagination-meta.js';
 import { PaginatedResult } from '../common/pagination/paginated-result.js';
+import { WithdrawalPushService } from '../withdrawal-push/withdrawal-push.service.js';
 
 import { CreateApprenticeDto } from './dto/create-apprentice.dto.js';
 import { UpdateApprenticeDto } from './dto/update-apprentice.dto.js';
 import { Apprentice } from './entities/apprentice.entity.js';
+import { ApprenticeStatus } from './enums/apprentice-status.enum.js';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
 
@@ -21,6 +23,7 @@ export class ApprenticesService {
   constructor(
     @InjectRepository(Apprentice)
     private readonly apprenticeRepo: Repository<Apprentice>,
+    private readonly withdrawalPushService: WithdrawalPushService,
   ) {}
 
   async create(
@@ -104,9 +107,19 @@ export class ApprenticesService {
     if (dto.firstName !== undefined)
       apprentice.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) apprentice.lastName = dto.lastName.trim();
+    const wasWithdrawn = apprentice.status === ApprenticeStatus.WITHDRAWN;
     if (dto.status !== undefined) apprentice.status = dto.status;
 
-    return this.apprenticeRepo.save(apprentice);
+    const updated = await this.apprenticeRepo.save(apprentice);
+    if (!wasWithdrawn && updated.status === ApprenticeStatus.WITHDRAWN) {
+      await this.withdrawalPushService.queueFromApprenticeWithdrawal({
+        organisationId,
+        apprenticeId: updated.id,
+        requestedByUserId: user.id,
+      });
+    }
+
+    return updated;
   }
 
   async remove(user: AuthenticatedUser, id: string): Promise<void> {

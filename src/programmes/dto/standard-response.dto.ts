@@ -21,6 +21,12 @@ export class StandardResponseDto {
   @ApiProperty({ nullable: true })
   description!: string | null;
 
+  @ApiProperty({ nullable: true })
+  fundingBandMax!: number | null;
+
+  @ApiProperty({ nullable: true })
+  defaultDurationMonths!: number | null;
+
   @ApiProperty({ enum: StandardStatus })
   status!: StandardStatus;
 }

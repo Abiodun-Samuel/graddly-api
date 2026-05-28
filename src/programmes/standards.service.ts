@@ -47,6 +47,9 @@ export class StandardsService {
       title: dto.title.trim(),
       description: dto.description?.trim() ?? null,
       status: dto.status,
+      fundingBandMax:
+        dto.fundingBandMax !== undefined ? String(dto.fundingBandMax) : null,
+      defaultDurationMonths: dto.defaultDurationMonths ?? null,
     });
 
     return this.standardRepo.save(standard);
@@ -108,6 +111,12 @@ export class StandardsService {
     if (dto.description !== undefined)
       standard.description = dto.description?.trim() ?? null;
     if (dto.status !== undefined) standard.status = dto.status;
+    if (dto.fundingBandMax !== undefined) {
+      standard.fundingBandMax = String(dto.fundingBandMax);
+    }
+    if (dto.defaultDurationMonths !== undefined) {
+      standard.defaultDurationMonths = dto.defaultDurationMonths;
+    }
 
     return this.standardRepo.save(standard);
   }

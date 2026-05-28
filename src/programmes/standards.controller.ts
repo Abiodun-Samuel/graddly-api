@@ -47,6 +47,7 @@ import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
 import { CreateStandardDto } from './dto/create-standard.dto.js';
 import { StandardResponseDto } from './dto/standard-response.dto.js';
 import { UpdateStandardDto } from './dto/update-standard.dto.js';
+import { Standard } from './entities/standard.entity.js';
 import { StandardsService } from './standards.service.js';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
@@ -99,10 +100,12 @@ export class StandardsController {
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateStandardDto,
-  ) {
+  ): Promise<StandardResponseDto> {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
-    return this.standardsService.create(user, dto);
+    return this.standardsService
+      .create(user, dto)
+      .then((standard) => this.toResponseDto(standard));
   }
 
   @Get()
@@ -127,7 +130,13 @@ export class StandardsController {
   ): Promise<PaginatedResult<StandardResponseDto>> {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
-    return this.standardsService.findAll(user, query);
+    return this.standardsService.findAll(user, query).then(
+      (result) =>
+        new PaginatedResult(
+          result.items.map((item) => this.toResponseDto(item)),
+          result.meta,
+        ),
+    );
   }
 
   @Get(':id')
@@ -149,10 +158,12 @@ export class StandardsController {
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  ): Promise<StandardResponseDto> {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
-    return this.standardsService.findOne(user, id);
+    return this.standardsService
+      .findOne(user, id)
+      .then((standard) => this.toResponseDto(standard));
   }
 
   @Patch(':id')
@@ -183,10 +194,29 @@ export class StandardsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStandardDto,
-  ) {
+  ): Promise<StandardResponseDto> {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
-    return this.standardsService.update(user, id, dto);
+    return this.standardsService
+      .update(user, id, dto)
+      .then((standard) => this.toResponseDto(standard));
+  }
+
+  private toResponseDto(standard: Standard): StandardResponseDto {
+    return {
+      id: standard.id,
+      organisationId: standard.organisationId,
+      programmeId: standard.programmeId,
+      code: standard.code,
+      title: standard.title,
+      description: standard.description,
+      fundingBandMax:
+        standard.fundingBandMax !== null
+          ? Number(standard.fundingBandMax)
+          : null,
+      defaultDurationMonths: standard.defaultDurationMonths,
+      status: standard.status,
+    };
   }
 
   @Delete(':id')

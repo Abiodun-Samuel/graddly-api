@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -21,15 +21,21 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import { ResponseMessage } from '../common/interceptors/response-message.decorator.js';
 import { setLastKnownUserIdForGuc } from '../database/apply-tenant-gucs.js';
 
+import { DasLevyForecastService } from './das-levy-forecast.service.js';
 import { DasLevySyncService } from './das-levy-sync.service.js';
 import { DasSyncDispatchService } from './das-sync-dispatch.service.js';
 import { DasLevyBalanceResponseDto } from './dto/das-levy-balance-response.dto.js';
+import { DasLevyForecastResponseDto } from './dto/das-levy-forecast-response.dto.js';
 import { DasSyncResponseDto } from './dto/das-sync-response.dto.js';
 
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
 
 @ApiTags('DAS')
-@ApiExtraModels(DasSyncResponseDto, DasLevyBalanceResponseDto)
+@ApiExtraModels(
+  DasSyncResponseDto,
+  DasLevyBalanceResponseDto,
+  DasLevyForecastResponseDto,
+)
 @Controller({ path: 'das', version: '1' })
 @UseGuards(JwtAuthGuard, ActiveOrganisationGuard)
 @ApiBearerAuth()
@@ -50,6 +56,7 @@ export class DasController {
   constructor(
     private readonly dispatch: DasSyncDispatchService,
     private readonly levySyncService: DasLevySyncService,
+    private readonly levyForecastService: DasLevyForecastService,
   ) {}
 
   @Post('sync')
@@ -96,5 +103,32 @@ export class DasController {
     setCurrentUserId(user.id);
     setLastKnownUserIdForGuc(user.id);
     return this.levySyncService.getLatestForOrganisation(user.organisationId!);
+  }
+
+  @Get('levy-forecast')
+  @ResponseMessage('DAS levy forecast retrieved successfully')
+  @ApiOperation({
+    summary: 'Get projected levy spend forecast for active organisation',
+  })
+  @ApiOkResponse({
+    description: 'Levy forecast summary',
+    schema: {
+      properties: {
+        message: { type: 'string' },
+        data: { $ref: getSchemaPath(DasLevyForecastResponseDto) },
+      },
+    },
+  })
+  getLevyForecast(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('horizonMonths') horizonMonths?: string,
+  ): Promise<DasLevyForecastResponseDto> {
+    setCurrentUserId(user.id);
+    setLastKnownUserIdForGuc(user.id);
+    const parsed = Number(horizonMonths ?? 12);
+    return this.levyForecastService.forecastForOrganisation(
+      user.organisationId!,
+      Number.isNaN(parsed) ? 12 : parsed,
+    );
   }
 }

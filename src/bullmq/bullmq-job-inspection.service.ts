@@ -17,10 +17,12 @@ import {
 import {
   BULLMQ_QUEUES,
   QUEUE_DAS_SYNC,
+  QUEUE_DAS_SYNC_DLQ,
   QUEUE_DIGEST,
   QUEUE_EMAIL,
   QUEUE_PDF,
   QUEUE_SYSTEM,
+  QUEUE_WITHDRAWAL_PUSH,
 } from './bullmq.constants.js';
 import { FailedJobSummaryDto } from './dto/failed-job-summary.dto.js';
 import { QueueJobDetailDto } from './dto/queue-job-detail.dto.js';
@@ -35,6 +37,8 @@ export class BullmqJobInspectionService {
     @InjectQueue(QUEUE_DIGEST) digestQueue: Queue,
     @InjectQueue(QUEUE_PDF) pdfQueue: Queue,
     @InjectQueue(QUEUE_DAS_SYNC) dasSyncQueue: Queue,
+    @InjectQueue(QUEUE_DAS_SYNC_DLQ) dasSyncDlqQueue: Queue,
+    @InjectQueue(QUEUE_WITHDRAWAL_PUSH) withdrawalPushQueue: Queue,
     @InjectQueue(QUEUE_SYSTEM) systemQueue: Queue,
   ) {
     this.queues = new Map([
@@ -42,6 +46,8 @@ export class BullmqJobInspectionService {
       [QUEUE_DIGEST, digestQueue],
       [QUEUE_PDF, pdfQueue],
       [QUEUE_DAS_SYNC, dasSyncQueue],
+      [QUEUE_DAS_SYNC_DLQ, dasSyncDlqQueue],
+      [QUEUE_WITHDRAWAL_PUSH, withdrawalPushQueue],
       [QUEUE_SYSTEM, systemQueue],
     ]);
   }

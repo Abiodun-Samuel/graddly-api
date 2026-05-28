@@ -26,4 +26,19 @@ export class EnrolmentResponseDto {
 
   @ApiProperty({ nullable: true })
   cancelledAt!: string | null;
+
+  @ApiProperty({ nullable: true })
+  agreedPrice!: number | null;
+
+  @ApiProperty({ nullable: true })
+  plannedStartDate!: string | null;
+
+  @ApiProperty({ nullable: true })
+  plannedEndDate!: string | null;
+
+  @ApiProperty({ nullable: true })
+  plannedDurationMonths!: number | null;
+
+  @ApiProperty({ nullable: true })
+  completionPaymentPercent!: number | null;
 }

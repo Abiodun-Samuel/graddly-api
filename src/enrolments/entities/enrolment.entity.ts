@@ -55,4 +55,19 @@ export class Enrolment extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   cancelledAt!: Date | null;
+
+  @Column({ type: 'numeric', precision: 14, scale: 2, nullable: true })
+  agreedPrice!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  plannedStartDate!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  plannedEndDate!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  plannedDurationMonths!: number | null;
+
+  @Column({ type: 'numeric', precision: 5, scale: 2, nullable: true })
+  completionPaymentPercent!: string | null;
 }

@@ -12,6 +12,7 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto.js';
 import { buildPaginationMeta } from '../common/pagination/build-pagination-meta.js';
 import { PaginatedResult } from '../common/pagination/paginated-result.js';
 import { Standard } from '../programmes/entities/standard.entity.js';
+import { WithdrawalPushService } from '../withdrawal-push/withdrawal-push.service.js';
 
 import { CreateEnrolmentDto } from './dto/create-enrolment.dto.js';
 import { Enrolment } from './entities/enrolment.entity.js';
@@ -28,6 +29,7 @@ export class EnrolmentsService {
     private readonly apprenticeRepo: Repository<Apprentice>,
     @InjectRepository(Standard)
     private readonly standardRepo: Repository<Standard>,
+    private readonly withdrawalPushService: WithdrawalPushService,
   ) {}
 
   async create(
@@ -66,7 +68,23 @@ export class EnrolmentsService {
       apprenticeId: dto.apprenticeId,
       standardId: dto.standardId,
       status: EnrolmentStatus.DRAFT,
+      agreedPrice:
+        dto.agreedPrice !== undefined ? String(dto.agreedPrice) : null,
+      plannedStartDate: dto.plannedStartDate ?? null,
+      plannedEndDate: dto.plannedEndDate ?? null,
+      completionPaymentPercent:
+        dto.completionPaymentPercent !== undefined
+          ? String(dto.completionPaymentPercent)
+          : null,
     });
+    if (dto.plannedStartDate && dto.plannedEndDate) {
+      const start = new Date(dto.plannedStartDate);
+      const end = new Date(dto.plannedEndDate);
+      const months =
+        (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+        (end.getUTCMonth() - start.getUTCMonth());
+      enrolment.plannedDurationMonths = Math.max(months, 1);
+    }
 
     return this.enrolmentRepo.save(enrolment);
   }
@@ -141,7 +159,14 @@ export class EnrolmentsService {
     }
     enrolment.status = EnrolmentStatus.CANCELLED;
     enrolment.cancelledAt = new Date();
-    return this.enrolmentRepo.save(enrolment);
+    const saved = await this.enrolmentRepo.save(enrolment);
+    await this.withdrawalPushService.queueFromEnrolment({
+      organisationId: user.organisationId!,
+      enrolmentId: saved.id,
+      apprenticeId: saved.apprenticeId,
+      requestedByUserId: user.id,
+    });
+    return saved;
   }
 
   private async assertInOrganisation(

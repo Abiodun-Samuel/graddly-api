@@ -1,10 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsInt,
   IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 import { StandardStatus } from '../enums/standard-status.enum.js';
@@ -33,4 +36,21 @@ export class CreateStandardDto {
   @IsOptional()
   @IsEnum(StandardStatus)
   status?: StandardStatus;
+
+  @ApiPropertyOptional({
+    description: 'Maximum levy funding band used for forecast calculations',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  fundingBandMax?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Default expected duration in months for active spend forecast',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  defaultDurationMonths?: number;
 }

@@ -37,6 +37,12 @@ export class Standard extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description!: string | null;
 
+  @Column({ type: 'numeric', precision: 14, scale: 2, nullable: true })
+  fundingBandMax!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  defaultDurationMonths!: number | null;
+
   @Column({
     type: 'enum',
     enum: StandardStatus,

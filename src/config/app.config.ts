@@ -132,5 +132,8 @@ export default registerAs('app', () => {
       levyBalancePath: e.DAS_LEVY_BALANCE_PATH,
       timeoutMs: e.DAS_TIMEOUT_MS,
     },
+    withdrawalPush: {
+      endpointUrl: e.WITHDRAWAL_PUSH_ENDPOINT_URL,
+    },
   };
 });

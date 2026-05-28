@@ -281,8 +281,16 @@ describe('BullmqOpsController (e2e, Redis integration)', () => {
       (q) => q.name,
     );
     expect(names).toEqual(
-      expect.arrayContaining(['email', 'digest', 'pdf', 'das-sync', 'system']),
+      expect.arrayContaining([
+        'email',
+        'digest',
+        'pdf',
+        'das-sync',
+        'das-sync-dlq',
+        'withdrawal-push',
+        'system',
+      ]),
     );
-    expect(names).toHaveLength(5);
+    expect(names).toHaveLength(7);
   });
 });

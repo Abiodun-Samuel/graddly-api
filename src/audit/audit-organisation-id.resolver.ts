@@ -6,6 +6,7 @@ import { OrganisationMembership } from '../organisations/entities/organisation-m
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { Programme } from '../programmes/entities/programme.entity.js';
 import { Standard } from '../programmes/entities/standard.entity.js';
+import { WithdrawalCompletionPush } from '../withdrawal-push/entities/withdrawal-completion-push.entity.js';
 
 export type OrganisationScopedEntity =
   | Organisation
@@ -16,6 +17,7 @@ export type OrganisationScopedEntity =
   | Apprentice
   | Enrolment
   | DasLevyBalance
+  | WithdrawalCompletionPush
   | (Record<string, unknown> & {
       organisationId?: string;
       organisation?: { id?: string };
@@ -47,7 +49,8 @@ export function resolveAuditOrganisationId(
     entityType === 'standards' ||
     entityType === 'apprentices' ||
     entityType === 'enrolments' ||
-    entityType === 'das_levy_balances'
+    entityType === 'das_levy_balances' ||
+    entityType === 'withdrawal_completion_pushes'
   ) {
     const scoped = entity as { organisationId?: string };
     return scoped.organisationId ?? null;
@@ -69,6 +72,7 @@ export function isAuditedEntity(entity: unknown): boolean {
     ctor === Standard ||
     ctor === Apprentice ||
     ctor === Enrolment ||
-    ctor === DasLevyBalance
+    ctor === DasLevyBalance ||
+    ctor === WithdrawalCompletionPush
   );
 }

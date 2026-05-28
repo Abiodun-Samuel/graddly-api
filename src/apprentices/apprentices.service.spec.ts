@@ -2,6 +2,8 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import { WithdrawalPushService } from '../withdrawal-push/withdrawal-push.service.js';
+
 import { ApprenticesService } from './apprentices.service.js';
 import { Apprentice } from './entities/apprentice.entity.js';
 
@@ -21,6 +23,12 @@ describe('ApprenticesService', () => {
         {
           provide: getRepositoryToken(Apprentice),
           useValue: { findOne, create, save, findAndCount, softRemove },
+        },
+        {
+          provide: WithdrawalPushService,
+          useValue: {
+            queueFromApprenticeWithdrawal: jest.fn(),
+          },
         },
       ],
     }).compile();

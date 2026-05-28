@@ -13,6 +13,12 @@ export const QUEUE_PDF = 'pdf';
 /** Queue for DAS organisation sync jobs (Phase L). */
 export const QUEUE_DAS_SYNC = 'das-sync';
 
+/** Dedicated dead-letter queue for DAS sync terminal failures. */
+export const QUEUE_DAS_SYNC_DLQ = 'das-sync-dlq';
+
+/** Queue for outbound withdrawal completion pushes. */
+export const QUEUE_WITHDRAWAL_PUSH = 'withdrawal-push';
+
 /** Internal queue for smoke / health jobs. */
 export const QUEUE_SYSTEM = 'system';
 
@@ -21,6 +27,8 @@ export const BULLMQ_QUEUES = [
   QUEUE_DIGEST,
   QUEUE_PDF,
   QUEUE_DAS_SYNC,
+  QUEUE_DAS_SYNC_DLQ,
+  QUEUE_WITHDRAWAL_PUSH,
   QUEUE_SYSTEM,
 ] as const;
 

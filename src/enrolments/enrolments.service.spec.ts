@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { Apprentice } from '../apprentices/entities/apprentice.entity.js';
 import { Standard } from '../programmes/entities/standard.entity.js';
+import { WithdrawalPushService } from '../withdrawal-push/withdrawal-push.service.js';
 
 import { EnrolmentsService } from './enrolments.service.js';
 import { Enrolment } from './entities/enrolment.entity.js';
@@ -35,6 +36,12 @@ describe('EnrolmentsService', () => {
         {
           provide: getRepositoryToken(Standard),
           useValue: { findOne: standardFindOne },
+        },
+        {
+          provide: WithdrawalPushService,
+          useValue: {
+            queueFromEnrolment: jest.fn(),
+          },
         },
       ],
     }).compile();

@@ -1,15 +1,16 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 
 import {
   setCurrentOrganisationId,
   setCurrentUserId,
 } from '../../common/context/correlation-id-context.js';
+import { DAS_DLQ_JOB_DEAD_LETTER } from '../../das/das-dlq.constants.js';
 import { DAS_JOB_SYNC_ORGANISATION } from '../../das/das-job.constants.js';
 import { DasLevySyncService } from '../../das/das-levy-sync.service.js';
 import { setLastKnownUserIdForGuc } from '../../database/apply-tenant-gucs.js';
-import { QUEUE_DAS_SYNC } from '../bullmq.constants.js';
+import { QUEUE_DAS_SYNC, QUEUE_DAS_SYNC_DLQ } from '../bullmq.constants.js';
 
 import type { IDasSyncJobPayload } from '../../das/das-job.payload.js';
 
@@ -17,7 +18,10 @@ import type { IDasSyncJobPayload } from '../../das/das-job.payload.js';
 export class DasSyncProcessor extends WorkerHost {
   private readonly logger = new Logger(DasSyncProcessor.name);
 
-  constructor(private readonly dasSyncService: DasLevySyncService) {
+  constructor(
+    private readonly dasSyncService: DasLevySyncService,
+    @InjectQueue(QUEUE_DAS_SYNC_DLQ) private readonly dlqQueue: Queue,
+  ) {
     super();
   }
 
@@ -34,9 +38,25 @@ export class DasSyncProcessor extends WorkerHost {
     setCurrentUserId(requestedByUserId ?? 'system-das-sync');
     setLastKnownUserIdForGuc(requestedByUserId ?? 'system-das-sync');
 
-    await this.dasSyncService.syncOrganisation(
-      organisationId,
-      requestedByUserId,
-    );
+    try {
+      await this.dasSyncService.syncOrganisation(
+        organisationId,
+        requestedByUserId,
+      );
+    } catch (error) {
+      const totalAttempts = job.opts.attempts ?? 1;
+      const isTerminalFailure = job.attemptsMade + 1 >= totalAttempts;
+      if (isTerminalFailure) {
+        await this.dlqQueue.add(DAS_DLQ_JOB_DEAD_LETTER, {
+          sourceQueue: QUEUE_DAS_SYNC,
+          sourceJobId: job.id,
+          attemptsMade: job.attemptsMade + 1,
+          failedAt: new Date().toISOString(),
+          payload: job.data,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
   }
 }

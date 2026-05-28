@@ -180,6 +180,8 @@ export const envSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     CRON_DAS_SYNC_SCHEDULE: z.string().min(1).default('*/15 * * * *'),
+
+    WITHDRAWAL_PUSH_ENDPOINT_URL: z.string().url().optional().default(''),
   })
   .superRefine((data, ctx) => {
     const deployed =
