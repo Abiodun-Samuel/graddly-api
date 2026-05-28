@@ -45,6 +45,6 @@ import type { IPdfRenderer } from './interfaces/pdf-renderer.interface.js';
       inject: [ConfigService, PdfKitPdfRenderer, NoopPdfRenderer],
     },
   ],
-  exports: [PdfService, PdfDispatchService],
+  exports: [PdfService, PdfDispatchService, PdfJobsService],
 })
 export class PdfModule {}

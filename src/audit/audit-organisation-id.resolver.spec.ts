@@ -3,6 +3,9 @@ import { OrganisationMembership } from '../organisations/entities/organisation-m
 import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { OrganisationRole } from '../organisations/organisation-role.enum.js';
 import { OtjLogEntry } from '../otj/entities/otj-log-entry.entity.js';
+import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
+import { Review } from '../reviews/entities/review.entity.js';
 import { WithdrawalCompletionPush } from '../withdrawal-push/entities/withdrawal-completion-push.entity.js';
 
 import {
@@ -42,6 +45,29 @@ describe('audit-organisation-id.resolver', () => {
     );
   });
 
+  it('resolves organisation id for reviews', () => {
+    const review = Object.assign(new Review(), { organisationId: 'org-rev' });
+    expect(resolveAuditOrganisationId(review, 'reviews')).toBe('org-rev');
+  });
+
+  it('resolves organisation id for review records', () => {
+    const record = Object.assign(new ReviewRecord(), {
+      organisationId: 'org-rec',
+    });
+    expect(resolveAuditOrganisationId(record, 'review_records')).toBe(
+      'org-rec',
+    );
+  });
+
+  it('resolves organisation id for review signatures', () => {
+    const sig = Object.assign(new ReviewSignature(), {
+      organisationId: 'org-sig',
+    });
+    expect(resolveAuditOrganisationId(sig, 'review_signatures')).toBe(
+      'org-sig',
+    );
+  });
+
   it('resolves organisation id for withdrawal completion pushes', () => {
     const push = Object.assign(new WithdrawalCompletionPush(), {
       organisationId: 'org-push',
@@ -55,6 +81,9 @@ describe('audit-organisation-id.resolver', () => {
     expect(isAuditedEntity(new Organisation())).toBe(true);
     expect(isAuditedEntity(new Invitation())).toBe(true);
     expect(isAuditedEntity(new OtjLogEntry())).toBe(true);
+    expect(isAuditedEntity(new Review())).toBe(true);
+    expect(isAuditedEntity(new ReviewRecord())).toBe(true);
+    expect(isAuditedEntity(new ReviewSignature())).toBe(true);
     expect(isAuditedEntity(new WithdrawalCompletionPush())).toBe(true);
     expect(isAuditedEntity({ id: 'x' })).toBe(false);
   });

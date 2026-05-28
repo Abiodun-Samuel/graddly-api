@@ -5,4 +5,5 @@ export interface IPdfJobPayload {
   organisationId: string;
   userId: string;
   template: PdfJobTemplate;
+  reviewId?: string;
 }

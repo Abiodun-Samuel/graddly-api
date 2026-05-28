@@ -4,6 +4,7 @@ import { PDF_RENDERER } from './pdf.constants.js';
 
 import type {
   IPdfRenderer,
+  IReviewSnapshotContent,
   ISignedPdfOptions,
 } from './interfaces/pdf-renderer.interface.js';
 
@@ -13,6 +14,10 @@ export class PdfService {
 
   renderHelloPdf(): Promise<Buffer> {
     return this.renderer.renderHelloPdf();
+  }
+
+  renderReviewSnapshot(content: IReviewSnapshotContent): Promise<Buffer> {
+    return this.renderer.renderReviewSnapshot(content);
   }
 
   embedSignature(

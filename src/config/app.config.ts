@@ -55,6 +55,10 @@ export default registerAs('app', () => {
       dasSyncSchedule: e.CRON_DAS_SYNC_SCHEDULE,
       otjPaceEnabled: e.CRON_OTJ_PACE_ENABLED,
       otjPaceSchedule: e.CRON_OTJ_PACE_SCHEDULE,
+      reviewOverdueEnabled: e.CRON_REVIEW_OVERDUE_ENABLED,
+      reviewOverdueSchedule: e.CRON_REVIEW_OVERDUE_SCHEDULE,
+      reviewRemindersEnabled: e.CRON_REVIEW_REMINDERS_ENABLED,
+      reviewRemindersSchedule: e.CRON_REVIEW_REMINDERS_SCHEDULE,
     },
     queueOps: {
       enabled: e.QUEUE_OPS_ENABLED,

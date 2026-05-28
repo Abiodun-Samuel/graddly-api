@@ -19,5 +19,6 @@ import { EsignatureService } from './esignature.service.js';
   ],
   controllers: [EsignatureController],
   providers: [EsignatureService],
+  exports: [EsignatureService],
 })
 export class EsignatureModule {}

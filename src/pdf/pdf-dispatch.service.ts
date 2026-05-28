@@ -27,6 +27,7 @@ export class PdfDispatchService {
     organisationId: string;
     userId: string;
     template: PdfJobTemplate;
+    reviewId?: string;
   }): Promise<PdfGenerationJob> {
     const jobId = uuidV4();
     const job = this.jobRepo.create({
@@ -43,6 +44,7 @@ export class PdfDispatchService {
       organisationId: input.organisationId,
       userId: input.userId,
       template: input.template,
+      reviewId: input.reviewId,
     };
 
     await this.pdfQueue.add(PDF_JOB_GENERATE, payload, {

@@ -1,0 +1,1 @@
+export const REVIEW_BULK_SCHEDULE_MAX = 20;

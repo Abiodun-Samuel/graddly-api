@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit';
 
 import type {
   IPdfRenderer,
+  IReviewSnapshotContent,
   ISignedPdfOptions,
 } from '../interfaces/pdf-renderer.interface.js';
 
@@ -40,6 +41,44 @@ export class PdfKitPdfRenderer implements IPdfRenderer {
       doc.fontSize(24).text('Hello from Graddly PDF', { align: 'center' });
       doc.moveDown();
       doc.fontSize(12).text('Phase J pdfkit baseline', { align: 'center' });
+    });
+  }
+
+  renderReviewSnapshot(content: IReviewSnapshotContent): Promise<Buffer> {
+    return renderToBuffer((doc) => {
+      doc.fontSize(20).text(content.title ?? 'Apprenticeship review', {
+        align: 'center',
+      });
+      doc.moveDown();
+      doc.fontSize(12).text(`Apprentice: ${content.apprenticeName}`);
+      doc.text(`Scheduled: ${content.scheduledAt}`);
+      if (content.progressSummary) {
+        doc.moveDown().fontSize(14).text('Progress summary');
+        doc.fontSize(11).text(content.progressSummary);
+      }
+      if (content.actionsAgreed) {
+        doc.moveDown().fontSize(14).text('Actions agreed');
+        doc.fontSize(11).text(content.actionsAgreed);
+      }
+      if (content.employerComments) {
+        doc.moveDown().fontSize(14).text('Employer comments');
+        doc.fontSize(11).text(content.employerComments);
+      }
+      if (content.smartGoals?.length) {
+        doc.moveDown().fontSize(14).text('SMART goals');
+        for (const goal of content.smartGoals) {
+          doc.moveDown().fontSize(11).text(`• ${goal.objective}`);
+        }
+      }
+      if (content.wellbeingScore !== undefined || content.wellbeingNotes) {
+        doc.moveDown().fontSize(14).text('Wellbeing');
+        if (content.wellbeingScore !== undefined) {
+          doc.fontSize(11).text(`Score: ${content.wellbeingScore}/10`);
+        }
+        if (content.wellbeingNotes) {
+          doc.fontSize(11).text(content.wellbeingNotes);
+        }
+      }
     });
   }
 

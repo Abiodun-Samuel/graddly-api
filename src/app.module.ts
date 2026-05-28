@@ -40,6 +40,7 @@ import { OtjModule } from './otj/otj.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { ProgrammesModule } from './programmes/programmes.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { ReviewsModule } from './reviews/reviews.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.js';
@@ -81,6 +82,7 @@ import { WithdrawalPushModule } from './withdrawal-push/withdrawal-push.module.j
     InvitationsModule,
     NotificationsModule,
     OtjModule,
+    ReviewsModule,
     StorageModule,
     DasModule,
     ProgrammesModule,

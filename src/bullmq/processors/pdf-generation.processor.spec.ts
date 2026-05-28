@@ -8,6 +8,9 @@ import { PdfJobStatus } from '../../pdf/enums/pdf-job-status.enum.js';
 import { PdfJobTemplate } from '../../pdf/enums/pdf-job-template.enum.js';
 import { PDF_JOB_GENERATE } from '../../pdf/pdf-job.constants.js';
 import { PdfService } from '../../pdf/pdf.service.js';
+import { ReviewRecord } from '../../reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../../reviews/entities/review-signature.entity.js';
+import { Review } from '../../reviews/entities/review.entity.js';
 import { StorageKeyBuilder } from '../../storage/storage-key.builder.js';
 import { StorageService } from '../../storage/storage.service.js';
 
@@ -49,6 +52,22 @@ describe('PdfGenerationProcessor', () => {
         {
           provide: getRepositoryToken(PdfGenerationJob),
           useValue: { update },
+        },
+        {
+          provide: getRepositoryToken(Review),
+          useValue: { findOne: jest.fn(), save: jest.fn(), count: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(ReviewRecord),
+          useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(ReviewSignature),
+          useValue: {
+            count: jest.fn(),
+            create: jest.fn((v: unknown) => v),
+            save: jest.fn(),
+          },
         },
       ],
     }).compile();

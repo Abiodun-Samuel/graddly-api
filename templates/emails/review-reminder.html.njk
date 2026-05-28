@@ -1,0 +1,9 @@
+{% extends "layouts/base.html.njk" %}
+
+{% block title %}Review reminder{% endblock %}
+
+{% block content %}
+<p>Hi {{ firstName }},</p>
+<p>This is a reminder that <strong>{{ reviewTitle }}</strong> is scheduled for {{ scheduledAt }} (in {{ daysAhead }} day(s)).</p>
+<p>Please sign in to {{ appName }} to prepare or complete the review.</p>
+{% endblock %}

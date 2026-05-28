@@ -11,6 +11,7 @@ const DEFAULT_TYPES = [
   NotificationType.GENERIC,
   NotificationType.INVITATION,
   NotificationType.OTJ,
+  NotificationType.REVIEW,
 ] as const;
 
 const DEFAULT_CHANNELS = [

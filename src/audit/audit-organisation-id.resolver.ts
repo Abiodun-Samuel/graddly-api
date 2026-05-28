@@ -7,6 +7,9 @@ import { Organisation } from '../organisations/entities/organisation.entity.js';
 import { OtjLogEntry } from '../otj/entities/otj-log-entry.entity.js';
 import { Programme } from '../programmes/entities/programme.entity.js';
 import { Standard } from '../programmes/entities/standard.entity.js';
+import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
+import { Review } from '../reviews/entities/review.entity.js';
 import { WithdrawalCompletionPush } from '../withdrawal-push/entities/withdrawal-completion-push.entity.js';
 
 export type OrganisationScopedEntity =
@@ -19,6 +22,9 @@ export type OrganisationScopedEntity =
   | Enrolment
   | DasLevyBalance
   | OtjLogEntry
+  | Review
+  | ReviewRecord
+  | ReviewSignature
   | WithdrawalCompletionPush
   | (Record<string, unknown> & {
       organisationId?: string;
@@ -53,6 +59,9 @@ export function resolveAuditOrganisationId(
     entityType === 'enrolments' ||
     entityType === 'das_levy_balances' ||
     entityType === 'otj_log_entries' ||
+    entityType === 'reviews' ||
+    entityType === 'review_records' ||
+    entityType === 'review_signatures' ||
     entityType === 'withdrawal_completion_pushes'
   ) {
     const scoped = entity as { organisationId?: string };
@@ -77,6 +86,9 @@ export function isAuditedEntity(entity: unknown): boolean {
     ctor === Enrolment ||
     ctor === DasLevyBalance ||
     ctor === OtjLogEntry ||
+    ctor === Review ||
+    ctor === ReviewRecord ||
+    ctor === ReviewSignature ||
     ctor === WithdrawalCompletionPush
   );
 }

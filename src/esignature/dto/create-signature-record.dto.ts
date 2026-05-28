@@ -13,4 +13,13 @@ export class CreateSignatureRecordDto {
   @IsOptional()
   @IsUUID()
   pdfJobId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Storage key of PDF to sign (used for chained co-sign when pdfJobId is omitted)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1024)
+  sourcePdfKey?: string;
 }

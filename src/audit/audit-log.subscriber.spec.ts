@@ -1,6 +1,11 @@
 import { Organisation } from '../organisations/entities/organisation.entity.js';
+import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
+import { Review } from '../reviews/entities/review.entity.js';
+import { ReviewSignatureStatus } from '../reviews/enums/review-signature-status.enum.js';
 
 import { AuditLogSubscriber } from './audit-log.subscriber.js';
+import { AuditLogEntry } from './entities/audit-log-entry.entity.js';
 import { AuditAction } from './enums/audit-action.enum.js';
 
 import type { InsertEvent, UpdateEvent } from 'typeorm';
@@ -71,6 +76,100 @@ describe('AuditLogSubscriber', () => {
     await subscriber.afterInsert(event);
 
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('afterInsert writes audit row for reviews', async () => {
+    const entity = Object.assign(new Review(), {
+      id: 'review-1',
+      organisationId: 'org-1',
+      enrolmentId: 'enrol-1',
+      apprenticeId: 'app-1',
+      scheduledAt: new Date('2026-06-01T10:00:00Z'),
+      status: 'scheduled',
+    });
+
+    const event = {
+      entity,
+      metadata: { tableName: 'reviews' },
+      manager,
+    } as unknown as InsertEvent<object>;
+
+    await subscriber.afterInsert(event);
+
+    expect(insert).toHaveBeenCalledWith(
+      AuditLogEntry,
+      expect.objectContaining({
+        organisationId: 'org-1',
+        entityType: 'reviews',
+        entityId: 'review-1',
+        action: AuditAction.INSERT,
+      }),
+    );
+  });
+
+  it('afterInsert writes audit row for review_records', async () => {
+    const entity = Object.assign(new ReviewRecord(), {
+      id: 'record-1',
+      organisationId: 'org-1',
+      reviewId: 'review-1',
+      payload: { smartGoals: [], wellbeing: { score: 5 } },
+    });
+
+    const event = {
+      entity,
+      metadata: { tableName: 'review_records' },
+      manager,
+    } as unknown as InsertEvent<object>;
+
+    await subscriber.afterInsert(event);
+
+    expect(insert).toHaveBeenCalledWith(
+      AuditLogEntry,
+      expect.objectContaining({
+        entityType: 'review_records',
+        entityId: 'record-1',
+        action: AuditAction.INSERT,
+      }),
+    );
+  });
+
+  it('afterUpdate writes audit row for review_signatures', async () => {
+    const before = Object.assign(new ReviewSignature(), {
+      id: 'sig-1',
+      organisationId: 'org-1',
+      reviewId: 'review-1',
+      status: ReviewSignatureStatus.PENDING,
+      signatureRecordId: null,
+    });
+    const entity = Object.assign(new ReviewSignature(), {
+      ...before,
+      status: ReviewSignatureStatus.SIGNED,
+      signatureRecordId: 'esign-1',
+    });
+
+    const event = {
+      entity,
+      databaseEntity: { ...before },
+      metadata: { tableName: 'review_signatures' },
+      manager,
+    } as unknown as UpdateEvent<object>;
+
+    await subscriber.afterUpdate(event);
+
+    expect(insert).toHaveBeenCalledWith(
+      AuditLogEntry,
+      expect.objectContaining({
+        entityType: 'review_signatures',
+        entityId: 'sig-1',
+        action: AuditAction.UPDATE,
+        changes: expect.objectContaining({
+          status: {
+            from: ReviewSignatureStatus.PENDING,
+            to: ReviewSignatureStatus.SIGNED,
+          },
+        }) as Record<string, { from?: unknown; to?: unknown }>,
+      }),
+    );
   });
 
   it('afterUpdate skips when there are no scalar changes', async () => {

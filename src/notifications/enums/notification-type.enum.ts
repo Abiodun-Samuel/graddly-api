@@ -4,4 +4,5 @@ export enum NotificationType {
   GENERIC = 'generic',
   INVITATION = 'invitation',
   OTJ = 'otj',
+  REVIEW = 'review',
 }

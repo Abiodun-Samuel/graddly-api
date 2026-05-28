@@ -5,6 +5,9 @@ import { DasModule } from '../das/das.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { PdfGenerationJob } from '../pdf/entities/pdf-generation-job.entity.js';
 import { PdfModule } from '../pdf/pdf.module.js';
+import { ReviewRecord } from '../reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../reviews/entities/review-signature.entity.js';
+import { Review } from '../reviews/entities/review.entity.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { WithdrawalPushModule } from '../withdrawal-push/withdrawal-push.module.js';
 import { WithdrawalPushProcessor } from '../withdrawal-push/withdrawal-push.processor.js';
@@ -24,7 +27,12 @@ import { SystemPingProcessor } from './processors/system-ping.processor.js';
     PdfModule,
     StorageModule,
     WithdrawalPushModule,
-    TypeOrmModule.forFeature([PdfGenerationJob]),
+    TypeOrmModule.forFeature([
+      PdfGenerationJob,
+      Review,
+      ReviewRecord,
+      ReviewSignature,
+    ]),
   ],
   providers: [
     SystemPingProcessor,

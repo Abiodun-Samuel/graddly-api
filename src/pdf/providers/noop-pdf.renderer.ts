@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import type {
   IPdfRenderer,
+  IReviewSnapshotContent,
   ISignedPdfOptions,
 } from '../interfaces/pdf-renderer.interface.js';
 
@@ -12,6 +13,10 @@ const MINIMAL_PDF = Buffer.from(
 @Injectable()
 export class NoopPdfRenderer implements IPdfRenderer {
   renderHelloPdf(): Promise<Buffer> {
+    return Promise.resolve(MINIMAL_PDF);
+  }
+
+  renderReviewSnapshot(_content: IReviewSnapshotContent): Promise<Buffer> {
     return Promise.resolve(MINIMAL_PDF);
   }
 

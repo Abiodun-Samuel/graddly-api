@@ -63,6 +63,9 @@ export class SignatureRecord {
   pdfGenerationJob!: PdfGenerationJob | null;
 
   @Column({ type: 'varchar', length: 1024, nullable: true })
+  sourcePdfKey!: string | null;
+
+  @Column({ type: 'varchar', length: 1024, nullable: true })
   signedPdfKey!: string | null;
 
   @Column({

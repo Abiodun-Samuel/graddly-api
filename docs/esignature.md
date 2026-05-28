@@ -15,6 +15,15 @@ Captures signature metadata (S3 image ref, SHA-256 hash, IP, timestamp) and prod
 }
 ```
 
+For chained co-sign (party 2+), pass `sourcePdfKey` instead of `pdfJobId` (the previous party’s `signedPdfKey`):
+
+```json
+{
+  "signatureImageKey": "orgs/<orgId>/signature/<objectId>/signature.png",
+  "sourcePdfKey": "orgs/<orgId>/export/<recordId>/signed-<id>.pdf"
+}
+```
+
 4. **Complete signing** — `POST /api/v1/esignature/records/:id/sign` embeds the signature image into a new PDF and stores it at `orgs/<orgId>/export/<recordId>/signed-<id>.pdf`.
 
 ## Metadata captured
@@ -36,8 +45,17 @@ Captures signature metadata (S3 image ref, SHA-256 hash, IP, timestamp) and prod
 
 Signed records are idempotent: calling `/sign` again returns the existing `signedPdfKey`.
 
+## Review co-sign (Phase N)
+
+Reviews use `POST /api/v1/reviews/:id/sign` with `{ party, signatureImageKey }`. The API orchestrates three sequential signatures (apprentice → tutor → employer manager) via the e-signature service:
+
+1. Party 1 signs the completed `review_snapshot` PDF job output (`pdfJobId`).
+2. Parties 2 and 3 sign the cumulative PDF from the previous party (`sourcePdfKey`).
+
+Tripartite **commitments** (Phase O) remain a separate workflow.
+
 ## Out of scope (later)
 
-- Co-sign / tripartite routing (Phases N/O)
+- Generic multi-party routing outside reviews/commitments
 - Learner membership validation on storage keys
 - Virus scanning

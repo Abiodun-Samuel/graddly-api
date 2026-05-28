@@ -9,3 +9,9 @@ export const DAS_SYNC_CRON_NAME = 'das-levy-sync';
 
 /** Nightly OTJ pace update cron. */
 export const OTJ_PACE_CRON_NAME = 'otj-pace-nightly';
+
+/** Nightly review overdue flag cron. */
+export const REVIEW_OVERDUE_CRON_NAME = 'review-overdue-nightly';
+
+/** Daily review reminder cron (7d and 1d). */
+export const REVIEW_REMINDERS_CRON_NAME = 'review-reminders-daily';

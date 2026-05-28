@@ -188,6 +188,20 @@ export const envSchema = z
       .transform((v) => v === 'true'),
     CRON_OTJ_PACE_SCHEDULE: z.string().min(1).default('0 1 * * *'),
 
+    CRON_REVIEW_OVERDUE_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+    CRON_REVIEW_OVERDUE_SCHEDULE: z.string().min(1).default('0 2 * * *'),
+
+    CRON_REVIEW_REMINDERS_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+    CRON_REVIEW_REMINDERS_SCHEDULE: z.string().min(1).default('0 7 * * *'),
+
     WITHDRAWAL_PUSH_ENDPOINT_URL: z.string().url().optional().default(''),
   })
   .superRefine((data, ctx) => {

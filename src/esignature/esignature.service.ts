@@ -55,6 +55,12 @@ export class EsignatureService {
       throw new BadRequestException('Signature image key is not in org scope');
     }
 
+    if (dto.pdfJobId && dto.sourcePdfKey) {
+      throw new BadRequestException(
+        'Provide either pdfJobId or sourcePdfKey, not both',
+      );
+    }
+
     let pdfJob: PdfGenerationJob | null = null;
     if (dto.pdfJobId) {
       pdfJob = await this.pdfJobRepo.findOne({
@@ -66,6 +72,16 @@ export class EsignatureService {
       if (pdfJob.status !== PdfJobStatus.COMPLETED || !pdfJob.outputKey) {
         throw new BadRequestException('PDF job is not completed');
       }
+    } else if (dto.sourcePdfKey) {
+      if (
+        !this.keyBuilder.belongsToOrganisation(dto.sourcePdfKey, organisationId)
+      ) {
+        throw new BadRequestException('Source PDF key is not in org scope');
+      }
+    } else {
+      throw new BadRequestException(
+        'Either pdfJobId or sourcePdfKey is required',
+      );
     }
 
     const imageBuffer = await this.storage.getObjectBuffer(
@@ -85,6 +101,7 @@ export class EsignatureService {
       clientIp,
       userAgent: userAgent ?? null,
       pdfGenerationJobId: pdfJob?.id ?? null,
+      sourcePdfKey: dto.sourcePdfKey ?? null,
       status: SignatureRecordStatus.PENDING,
     });
 
@@ -131,20 +148,24 @@ export class EsignatureService {
     }
 
     try {
-      const pdfJob = record.pdfGenerationJobId
-        ? await this.pdfJobRepo.findOne({
-            where: { id: record.pdfGenerationJobId, organisationId },
-          })
-        : null;
+      let unsignedPdfKey: string | null = null;
+      if (record.pdfGenerationJobId) {
+        const pdfJob = await this.pdfJobRepo.findOne({
+          where: { id: record.pdfGenerationJobId, organisationId },
+        });
+        unsignedPdfKey = pdfJob?.outputKey ?? null;
+      } else if (record.sourcePdfKey) {
+        unsignedPdfKey = record.sourcePdfKey;
+      }
 
-      if (!pdfJob?.outputKey) {
+      if (!unsignedPdfKey) {
         throw new BadRequestException(
-          'Signature record requires a completed PDF job',
+          'Signature record requires a completed PDF job or source PDF key',
         );
       }
 
       const [unsignedPdf, signaturePng] = await Promise.all([
-        this.storage.getObjectBuffer(organisationId, pdfJob.outputKey),
+        this.storage.getObjectBuffer(organisationId, unsignedPdfKey),
         this.storage.getObjectBuffer(organisationId, record.signatureImageKey),
       ]);
 

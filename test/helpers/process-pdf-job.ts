@@ -5,6 +5,9 @@ import { PdfGenerationProcessor } from '../../src/bullmq/processors/pdf-generati
 import { PdfGenerationJob } from '../../src/pdf/entities/pdf-generation-job.entity.js';
 import { PDF_JOB_GENERATE } from '../../src/pdf/pdf-job.constants.js';
 import { PdfService } from '../../src/pdf/pdf.service.js';
+import { ReviewRecord } from '../../src/reviews/entities/review-record.entity.js';
+import { ReviewSignature } from '../../src/reviews/entities/review-signature.entity.js';
+import { Review } from '../../src/reviews/entities/review.entity.js';
 import { StorageKeyBuilder } from '../../src/storage/storage-key.builder.js';
 import { StorageService } from '../../src/storage/storage.service.js';
 
@@ -21,6 +24,9 @@ export async function processPdfJobInApp(
     app.get(StorageService),
     app.get(StorageKeyBuilder),
     app.get<Repository<PdfGenerationJob>>(getRepositoryToken(PdfGenerationJob)),
+    app.get<Repository<Review>>(getRepositoryToken(Review)),
+    app.get<Repository<ReviewRecord>>(getRepositoryToken(ReviewRecord)),
+    app.get<Repository<ReviewSignature>>(getRepositoryToken(ReviewSignature)),
   );
 
   const job = {
