@@ -38,6 +38,6 @@ import { ResendEmailSender } from './providers/resend-email.sender.js';
     EmailPayloadFactory,
     EmailDispatchService,
   ],
-  exports: [EmailService, EmailDispatchService],
+  exports: [EmailService, EmailDispatchService, EmailPayloadFactory],
 })
 export class EmailModule {}

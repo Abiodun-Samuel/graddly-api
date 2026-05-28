@@ -1,11 +1,19 @@
+import { Apprentice } from '../apprentices/entities/apprentice.entity.js';
+import { Enrolment } from '../enrolments/entities/enrolment.entity.js';
 import { Invitation } from '../invitations/entities/invitation.entity.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
 import { Organisation } from '../organisations/entities/organisation.entity.js';
+import { Programme } from '../programmes/entities/programme.entity.js';
+import { Standard } from '../programmes/entities/standard.entity.js';
 
 export type OrganisationScopedEntity =
   | Organisation
   | OrganisationMembership
   | Invitation
+  | Programme
+  | Standard
+  | Apprentice
+  | Enrolment
   | (Record<string, unknown> & {
       organisationId?: string;
       organisation?: { id?: string };
@@ -32,6 +40,16 @@ export function resolveAuditOrganisationId(
     return membership.organisationId ?? membership.organisation?.id ?? null;
   }
 
+  if (
+    entityType === 'programmes' ||
+    entityType === 'standards' ||
+    entityType === 'apprentices' ||
+    entityType === 'enrolments'
+  ) {
+    const scoped = entity as { organisationId?: string };
+    return scoped.organisationId ?? null;
+  }
+
   return null;
 }
 
@@ -43,6 +61,10 @@ export function isAuditedEntity(entity: unknown): boolean {
   return (
     ctor === Organisation ||
     ctor === OrganisationMembership ||
-    ctor === Invitation
+    ctor === Invitation ||
+    ctor === Programme ||
+    ctor === Standard ||
+    ctor === Apprentice ||
+    ctor === Enrolment
   );
 }

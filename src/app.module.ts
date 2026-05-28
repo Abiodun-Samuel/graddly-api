@@ -13,6 +13,7 @@ import { WinstonModule } from 'nest-winston';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { ApprenticesModule } from './apprentices/apprentices.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { OidcSessionMiddleware } from './auth/oidc/middleware/oidc-session.middleware.js';
@@ -27,6 +28,7 @@ import { typeOrmForRoot } from './config/typeorm-module.factory.js';
 import databaseConfig from './config/typeorm.config.js';
 // import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { getEnv, validateEnv } from './config/validate-env.js';
+import { EnrolmentsModule } from './enrolments/enrolments.module.js';
 import { EsignatureModule } from './esignature/esignature.module.js';
 import { HealthModule } from './health/health.module.js';
 import { InvitationsModule } from './invitations/invitations.module.js';
@@ -34,6 +36,7 @@ import { winstonConfigFactory } from './logger/winston.config.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationsModule } from './organisations/organisations.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
+import { ProgrammesModule } from './programmes/programmes.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -75,6 +78,9 @@ import { UsersModule } from './users/users.module.js';
     InvitationsModule,
     NotificationsModule,
     StorageModule,
+    ProgrammesModule,
+    ApprenticesModule,
+    EnrolmentsModule,
     PdfModule,
     EsignatureModule,
     AuditModule,
@@ -92,7 +98,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(CorrelationIdMiddleware, RlsBootstrapMiddleware)
-      .forRoutes('*');
+      .forRoutes('*path');
 
     if (getEnv().OIDC_ENABLED) {
       consumer.apply(OidcSessionMiddleware).forRoutes({
