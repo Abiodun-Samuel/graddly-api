@@ -1,4 +1,5 @@
 import { Apprentice } from '../apprentices/entities/apprentice.entity.js';
+import { DasLevyBalance } from '../das/entities/das-levy-balance.entity.js';
 import { Enrolment } from '../enrolments/entities/enrolment.entity.js';
 import { Invitation } from '../invitations/entities/invitation.entity.js';
 import { OrganisationMembership } from '../organisations/entities/organisation-membership.entity.js';
@@ -14,6 +15,7 @@ export type OrganisationScopedEntity =
   | Standard
   | Apprentice
   | Enrolment
+  | DasLevyBalance
   | (Record<string, unknown> & {
       organisationId?: string;
       organisation?: { id?: string };
@@ -44,7 +46,8 @@ export function resolveAuditOrganisationId(
     entityType === 'programmes' ||
     entityType === 'standards' ||
     entityType === 'apprentices' ||
-    entityType === 'enrolments'
+    entityType === 'enrolments' ||
+    entityType === 'das_levy_balances'
   ) {
     const scoped = entity as { organisationId?: string };
     return scoped.organisationId ?? null;
@@ -65,6 +68,7 @@ export function isAuditedEntity(entity: unknown): boolean {
     ctor === Programme ||
     ctor === Standard ||
     ctor === Apprentice ||
-    ctor === Enrolment
+    ctor === Enrolment ||
+    ctor === DasLevyBalance
   );
 }

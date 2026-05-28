@@ -165,6 +165,21 @@ export const envSchema = z
       .default(300),
 
     PDF_PROVIDER: z.enum(['pdfkit', 'noop']).default('pdfkit'),
+
+    DAS_BASE_URL: z.string().url().optional().default(''),
+    DAS_TOKEN_URL: z.string().url().optional().default(''),
+    DAS_CLIENT_ID: z.string().optional().default(''),
+    DAS_CLIENT_SECRET: z.string().optional().default(''),
+    DAS_SCOPE: z.string().optional().default(''),
+    DAS_LEVY_BALANCE_PATH: z.string().min(1).default('/api/levy/balance'),
+    DAS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
+
+    CRON_DAS_SYNC_ENABLED: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((v) => v === 'true'),
+    CRON_DAS_SYNC_SCHEDULE: z.string().min(1).default('*/15 * * * *'),
   })
   .superRefine((data, ctx) => {
     const deployed =

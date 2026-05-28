@@ -51,6 +51,8 @@ export default registerAs('app', () => {
       lockTtlSeconds: e.CRON_LOCK_TTL_SECONDS,
       digestEnabled: e.CRON_DIGEST_ENABLED,
       digestSchedule: e.CRON_DIGEST_SCHEDULE,
+      dasSyncEnabled: e.CRON_DAS_SYNC_ENABLED,
+      dasSyncSchedule: e.CRON_DAS_SYNC_SCHEDULE,
     },
     queueOps: {
       enabled: e.QUEUE_OPS_ENABLED,
@@ -120,6 +122,15 @@ export default registerAs('app', () => {
     },
     pdf: {
       provider: e.PDF_PROVIDER,
+    },
+    das: {
+      baseUrl: e.DAS_BASE_URL,
+      tokenUrl: e.DAS_TOKEN_URL,
+      clientId: e.DAS_CLIENT_ID,
+      clientSecret: e.DAS_CLIENT_SECRET,
+      scope: e.DAS_SCOPE,
+      levyBalancePath: e.DAS_LEVY_BALANCE_PATH,
+      timeoutMs: e.DAS_TIMEOUT_MS,
     },
   };
 });

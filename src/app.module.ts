@@ -28,6 +28,7 @@ import { typeOrmForRoot } from './config/typeorm-module.factory.js';
 import databaseConfig from './config/typeorm.config.js';
 // import { TenantSessionSubscriber } from './database/tenant-session.subscriber.js';
 import { getEnv, validateEnv } from './config/validate-env.js';
+import { DasModule } from './das/das.module.js';
 import { EnrolmentsModule } from './enrolments/enrolments.module.js';
 import { EsignatureModule } from './esignature/esignature.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -78,6 +79,7 @@ import { UsersModule } from './users/users.module.js';
     InvitationsModule,
     NotificationsModule,
     StorageModule,
+    DasModule,
     ProgrammesModule,
     ApprenticesModule,
     EnrolmentsModule,
